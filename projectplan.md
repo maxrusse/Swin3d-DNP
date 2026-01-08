@@ -517,7 +517,8 @@ def sample_boundary_band_center(
     dilated = mask_5d
     eroded = mask_5d
     for _ in range(band_width_vox):
-        dilated = F.conv3d(dilated, kernel, padding=1).clamp(0,1)
+        # CORRECT: threshold at >0 for proper morphological dilation
+        dilated = (F.conv3d(dilated, kernel, padding=1) > 0).float()
         eroded = (F.conv3d(eroded, kernel, padding=1) >= kernel.sum()).float()
 
     boundary_band = (dilated - eroded)[0,0].clamp(0,1)
@@ -650,6 +651,160 @@ def cos2_window_3d(shape, device=None):
     wy = cos2_window_1d(h, device)
     wx = cos2_window_1d(w, device)
     return wz[:,None,None] * wy[None,:,None] * wx[None,None,:]
+```
+
+## 4.11 Coarse to Full Index Mapping (for inference)
+
+This is the reverse of Section 4.3 — needed to map coarse voxel indices back to full volume indices during inference.
+
+```python
+import torch
+
+def center_coarse_to_full_index(
+    center_coarse_index_zyx,  # (B,3) continuous index in coarse
+    affine_coarse,            # (B,4,4)
+    affine_full,              # (B,4,4)
+):
+    """Map coarse voxel index to full volume index via world space."""
+    B = center_coarse_index_zyx.shape[0]
+    device = center_coarse_index_zyx.device
+    dtype = torch.float32
+
+    # zyx -> xyz for affine multiply
+    center_xyz = torch.stack([
+        center_coarse_index_zyx[:, 2],
+        center_coarse_index_zyx[:, 1],
+        center_coarse_index_zyx[:, 0]
+    ], dim=1).to(dtype)
+
+    ones = torch.ones((B, 1), device=device, dtype=dtype)
+    center_h = torch.cat([center_xyz, ones], dim=1)  # (B,4)
+
+    # coarse index -> world
+    world = (affine_coarse.to(dtype) @ center_h[:, :, None])[:, :, 0]  # (B,4)
+
+    # world -> full index
+    A_full_inv = torch.linalg.inv(affine_full.to(dtype))
+    full_xyz = (A_full_inv @ world[:, :, None])[:, :3, 0]  # (B,3)
+
+    # xyz -> zyx
+    return torch.stack([full_xyz[:, 2], full_xyz[:, 1], full_xyz[:, 0]], dim=1)
+```
+
+## 4.12 Stitching Function (weighted overlap-add)
+
+Used during inference to combine patch predictions into a full-volume output.
+
+```python
+import torch
+from constants import EPS_STITCH
+
+def stitch_patches_to_volume(
+    patch_logits_list,       # List of (C, Df, Hf, Wf)
+    patch_starts_zyx_list,   # List of (3,) int tensors
+    full_shape,              # (D, H, W)
+    num_classes,
+    window,                  # (Df, Hf, Wf) weighting window
+    device,
+):
+    """Weighted overlap-add stitching."""
+    D, H, W = full_shape
+    Df, Hf, Wf = window.shape
+
+    num = torch.zeros((num_classes, D, H, W), device=device)
+    den = torch.zeros((1, D, H, W), device=device)
+    window = window.to(device)
+
+    for logits, start in zip(patch_logits_list, patch_starts_zyx_list):
+        sz, sy, sx = int(start[0]), int(start[1]), int(start[2])
+
+        # Source/dest slicing with boundary handling
+        src_s = [max(0, -sz), max(0, -sy), max(0, -sx)]
+        src_e = [Df - max(0, sz + Df - D), Hf - max(0, sy + Hf - H), Wf - max(0, sx + Wf - W)]
+        dst_s = [max(0, sz), max(0, sy), max(0, sx)]
+        dst_e = [min(D, sz + Df), min(H, sy + Hf), min(W, sx + Wf)]
+
+        w = window[src_s[0]:src_e[0], src_s[1]:src_e[1], src_s[2]:src_e[2]]
+        l = logits[:, src_s[0]:src_e[0], src_s[1]:src_e[1], src_s[2]:src_e[2]]
+
+        num[:, dst_s[0]:dst_e[0], dst_s[1]:dst_e[1], dst_s[2]:dst_e[2]] += l * w
+        den[:, dst_s[0]:dst_e[0], dst_s[1]:dst_e[1], dst_s[2]:dst_e[2]] += w
+
+    return num / (den + EPS_STITCH)
+```
+
+## 4.13 Coarse Label Downsampling
+
+For generating coarse supervision labels from full-resolution labels.
+
+```python
+import torch
+import torch.nn.functional as F
+
+def downsample_label_coarse(label_full, coarse_shape, is_binary_lesion=False):
+    """
+    Multi-class: nearest. Binary lesion: maxpool (preserves small objects).
+
+    Args:
+        label_full: (D, H, W) long tensor
+        coarse_shape: (Dc, Hc, Wc) target shape
+        is_binary_lesion: if True, use maxpool to preserve small lesions
+
+    Returns:
+        (Dc, Hc, Wc) long tensor
+    """
+    D, H, W = label_full.shape
+    Dc, Hc, Wc = coarse_shape
+
+    if is_binary_lesion:
+        # For binary lesions, maxpool preserves small objects
+        mask = (label_full > 0).float()[None, None]  # (1,1,D,H,W)
+        sd, sh, sw = D // Dc, H // Hc, W // Wc
+        pooled = F.max_pool3d(mask, kernel_size=(sd, sh, sw), stride=(sd, sh, sw))
+        if pooled.shape[2:] != (Dc, Hc, Wc):
+            pooled = F.interpolate(pooled, size=(Dc, Hc, Wc), mode='nearest')
+        return (pooled[0, 0] > 0.5).long()
+    else:
+        # Multi-class: use nearest interpolation
+        label_5d = label_full.float()[None, None]  # (1,1,D,H,W)
+        return F.interpolate(label_5d, size=(Dc, Hc, Wc), mode='nearest')[0, 0].long()
+```
+
+## 4.14 Focal Heatmap Loss
+
+CornerNet-style focal loss for keypoint/lesion heatmaps.
+
+```python
+import torch
+from constants import EPS_LOG
+
+def focal_heatmap_loss(pred, target, valid_mask, alpha=2.0, beta=4.0):
+    """
+    CornerNet-style focal loss for keypoint heatmaps.
+
+    Args:
+        pred: (B, C, D, H, W) predicted heatmap (after sigmoid)
+        target: (B, C, D, H, W) ground truth heatmap (0-1, peaks at 1)
+        valid_mask: (B, 1, D, H, W) mask for valid regions
+        alpha: focusing parameter for positive samples
+        beta: focusing parameter for negative samples
+
+    Returns:
+        Scalar focal loss
+    """
+    pred = pred.clamp(EPS_LOG, 1 - EPS_LOG)
+
+    pos_mask = (target == 1).float()
+    neg_mask = (target < 1).float()
+
+    # Positive loss: downweight easy positives
+    pos_loss = -((1 - pred) ** alpha) * torch.log(pred) * pos_mask
+
+    # Negative loss: downweight easy negatives and those near peaks
+    neg_loss = -((1 - target) ** beta) * (pred ** alpha) * torch.log(1 - pred) * neg_mask
+
+    loss = (pos_loss + neg_loss) * valid_mask
+    return loss.sum() / (pos_mask.sum() + 1e-4)
 ```
 
 ---
@@ -913,6 +1068,135 @@ Use the checkerboard rotation test you wrote; enforce tolerance.
 ## 10.6 DDP alignment test
 
 * verify that after DDP batch scatter, (image_fine checksum, center) pairs remain aligned.
+
+## 10.7 Stitching uniformity test
+
+Verify that constant-valued patches stitch to a constant volume in the interior (away from boundaries).
+
+```python
+import torch
+
+def test_stitching_uniform():
+    """Constant patches should stitch to constant volume in interior."""
+    from constants import EPS_STITCH
+
+    D, H, W = 128, 128, 128
+    Df, Hf, Wf = 64, 64, 64
+    num_classes = 3
+    stride = 32  # 50% overlap
+
+    window = cos2_window_3d((Df, Hf, Wf))
+
+    # Create overlapping patches with constant value
+    constant_val = 1.5
+    patch_logits_list = []
+    patch_starts_zyx_list = []
+
+    for sz in range(0, D - Df + 1, stride):
+        for sy in range(0, H - Hf + 1, stride):
+            for sx in range(0, W - Wf + 1, stride):
+                logits = torch.full((num_classes, Df, Hf, Wf), constant_val)
+                patch_logits_list.append(logits)
+                patch_starts_zyx_list.append(torch.tensor([sz, sy, sx]))
+
+    result = stitch_patches_to_volume(
+        patch_logits_list,
+        patch_starts_zyx_list,
+        (D, H, W),
+        num_classes,
+        window,
+        device='cpu'
+    )
+
+    # Check interior region (away from boundaries by one patch size)
+    interior = result[:, Df:D-Df, Hf:H-Hf, Wf:W-Wf]
+
+    # Interior should be constant within numerical tolerance
+    assert torch.allclose(interior, torch.full_like(interior, constant_val), atol=1e-5), \
+        f"Interior not constant: min={interior.min()}, max={interior.max()}, expected={constant_val}"
+
+    print("test_stitching_uniform PASSED")
+```
+
+## 10.8 Gradient flow test
+
+Verify that gradients from fine loss reach the coarse network when detach_coarse_context=False.
+
+```python
+import torch
+import torch.nn as nn
+
+def test_gradient_flow():
+    """Verify gradients reach coarse network from fine loss."""
+
+    # Simple mock networks for testing
+    class MockCoarseNet(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv = nn.Conv3d(1, 8, 3, padding=1)
+            self.head = nn.Conv3d(8, 2, 1)
+
+        def forward(self, x):
+            feat = self.conv(x)
+            logits = self.head(feat)
+            return feat, logits
+
+    class MockFineNet(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv = nn.Conv3d(8, 2, 3, padding=1)
+
+        def forward(self, x):
+            return self.conv(x)
+
+    # Create model with detach OFF (should have gradients)
+    coarse_net = MockCoarseNet()
+    fine_net = MockFineNet()
+    context_sampler = DifferentiableContextSampler()
+    fusion = nn.Identity()  # simplified: just pass through context
+
+    # Mock forward pass
+    B = 2
+    image_coarse = torch.randn(B, 1, 32, 32, 32, requires_grad=True)
+
+    coarse_feat, coarse_logits = coarse_net(image_coarse)
+
+    # Sample context (NOT detached)
+    centers = torch.zeros(B, 3)  # center of volume
+    out_shape = (16, 16, 16)
+    extent = (16, 16, 16)
+
+    context = context_sampler(coarse_feat, centers, out_shape, extent)
+
+    # Fine forward
+    fine_logits = fine_net(context)
+
+    # Compute fine loss
+    fine_loss = fine_logits.mean()
+    fine_loss.backward()
+
+    # Check that coarse network received gradients
+    coarse_grad = coarse_net.conv.weight.grad
+    assert coarse_grad is not None, "Coarse network should receive gradients when detach is OFF"
+    assert coarse_grad.abs().sum() > 0, "Coarse gradients should be non-zero"
+
+    print(f"test_gradient_flow PASSED (coarse grad norm: {coarse_grad.norm():.6f})")
+
+    # Now test with detach ON (should NOT have gradients)
+    coarse_net.zero_grad()
+
+    coarse_feat2, _ = coarse_net(image_coarse)
+    context2 = context_sampler(coarse_feat2.detach(), centers, out_shape, extent)  # DETACHED
+    fine_logits2 = fine_net(context2)
+    fine_loss2 = fine_logits2.mean()
+    fine_loss2.backward()
+
+    coarse_grad2 = coarse_net.conv.weight.grad
+    assert coarse_grad2 is None or coarse_grad2.abs().sum() == 0, \
+        "Coarse network should NOT receive gradients when detach is ON"
+
+    print("test_gradient_flow (detached) PASSED")
+```
 
 ---
 
