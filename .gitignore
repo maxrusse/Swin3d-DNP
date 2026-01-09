@@ -88,8 +88,10 @@ dmypy.json
 *.mhd
 *.raw
 *.dcm
-data/
+/data/
 datasets/
+# But keep our source data module
+!src/swin3d_dnp/data/
 
 # Model checkpoints
 *.pt
