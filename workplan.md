@@ -85,29 +85,29 @@ Core neural network components.
 
 ### Tasks
 
-- [ ] **3.1 Coarse Network Wrapper**
+- [x] **3.1 Coarse Network Wrapper**
   - Create `CoarseNet` wrapping Swin3D encoder/decoder
   - Return both features and logits
   - File: `src/swin3d_dnp/models/coarse_net.py`
 
-- [ ] **3.2 Fine Network Wrapper**
+- [x] **3.2 Fine Network Wrapper**
   - Create `FineNet` for high-res processing
   - Accept fused input (image + context)
   - File: `src/swin3d_dnp/models/fine_net.py`
 
-- [ ] **3.3 Context Fusion Layer**
+- [x] **3.3 Context Fusion Layer**
   - Implement `CoarseContextFusion`
   - Support optional coarse probability conditioning
   - Configurable normalization (instance/batch/layer)
   - File: `src/swin3d_dnp/models/fusion.py`
 
-- [ ] **3.4 Main Model**
+- [x] **3.4 Main Model**
   - Implement `Swin3DDNP` combining all components
   - Phase-controlled context detachment
   - `set_phase()` method for training control
   - File: `src/swin3d_dnp/models/swin3d_dnp.py`
 
-- [ ] **3.5 Model Tests**
+- [x] **3.5 Model Tests**
   - Test forward pass shapes
   - Test gradient flow with/without detach
   - Test phase switching

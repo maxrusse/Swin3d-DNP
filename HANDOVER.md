@@ -1,8 +1,8 @@
 # Handover Protocol - Swin3D-DNP Development
 
 **Date:** 2026-01-09
-**Branch:** `claude/review-and-next-task-EzNTL`
-**Last Commit:** `fe72c93` - Implement Milestone 2: Proposal Engine
+**Branch:** `claude/review-project-status-B66VD`
+**Last Commit:** Milestone 3 - Networks & Fusion
 
 ---
 
@@ -39,16 +39,59 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 | 2.3 Label Downsampling | `data/transforms.py` | ✅ Done |
 | 2.4 Proposal Tests | `tests/test_inference.py` | ✅ Done |
 
+#### Milestone 3: Networks & Fusion ✅
+| Task | File | Status |
+|------|------|--------|
+| 3.1 Coarse Network Wrapper | `models/coarse_net.py` | ✅ Done |
+| 3.2 Fine Network Wrapper | `models/fine_net.py` | ✅ Done |
+| 3.3 Context Fusion Layer | `models/fusion.py` | ✅ Done |
+| 3.4 Main Model | `models/swin3d_dnp.py` | ✅ Done |
+| 3.5 Model Tests | `tests/test_models.py` | ✅ Done |
+
 ### Remaining Milestones
-- **Milestone 3:** Networks & Fusion (NEXT)
-- **Milestone 4:** Loss Functions
+- **Milestone 4:** Loss Functions (NEXT)
 - **Milestone 5:** Training Pipeline
 - **Milestone 6:** Inference Pipeline
 - **Milestone 7:** Integration Tests
 
 ---
 
-## 3. Known Issues
+## 3. Milestone 3 Implementation Summary
+
+### 3.1 CoarseNet (`models/coarse_net.py`)
+- Wraps MONAI's `SwinUNETR` for coarse-resolution processing
+- Returns both task logits and intermediate features for context fusion
+- Features extracted from encoder bottleneck and projected
+- Variants: `CoarseNet` (full), `CoarseNetLite` (testing)
+
+### 3.2 FineNet (`models/fine_net.py`)
+- Wraps `SwinUNETR` for high-resolution patch processing
+- Accepts fused input (image + context features)
+- Variants: `FineNet`, `FineNetLite`, `SimpleFineNet` (conv-based for fast testing)
+
+### 3.3 CoarseContextFusion (`models/fusion.py`)
+- Fuses fine image with sampled coarse context features
+- Optional coarse probability conditioning via softmax/sigmoid
+- Configurable normalization (instance/batch/layer)
+- Variants: `CoarseContextFusion`, `AdaptiveCoarseContextFusion`, `SimpleFusion`
+
+### 3.4 Swin3DDNP (`models/swin3d_dnp.py`)
+- Complete hierarchical model combining all components
+- Phase-controlled gradient flow via `set_phase()`
+- Phase 1: detach context (memory-efficient warmup)
+- Phase 2-3: end-to-end gradients
+- Builder functions: `build_swin3d_dnp()`, `build_swin3d_dnp_lite()`, `build_simple_swin3d_dnp()`
+
+### 3.5 Model Tests (`tests/test_models.py`)
+- Forward pass shape tests
+- Gradient flow tests with/without detach
+- Phase switching tests
+- Context sampler integration tests
+- Fusion layer tests
+
+---
+
+## 4. Known Issues
 
 ### Pre-existing Test Failure
 ```
@@ -57,136 +100,46 @@ FAILED tests/test_geometry.py::TestMapping::test_full_to_coarse_at_center
 - **Location:** `tests/test_geometry.py:106`
 - **Issue:** Test expects center point (63.5, 63.5, 63.5) in 128³ volume to map to normalized (0,0,0) in 64³ coarse volume, but gets (1,1,1)
 - **Likely cause:** Either bug in `center_full_to_coarse_norm()` or incorrect test expectation
-- **Impact:** Does not block Milestone 2+, but should be investigated
+- **Impact:** Does not block Milestone 3+, but should be investigated
 
 ### Test Environment Note
-- Use `/usr/local/bin/python3 -m pytest` to run tests (avoids PATH issues)
-- Dependencies installed: torch 2.9.1, monai 1.5.1, scipy 1.16.3
+- Dependencies: PyTorch, MONAI, einops required
+- Install: `pip install torch monai einops`
+- Run tests: `python -m pytest tests/ -v`
 
 ---
 
-## 4. Next Milestone: Networks & Fusion
+## 5. Next Milestone: Loss Functions
 
-### Milestone 3 Tasks (from workplan.md)
+### Milestone 4 Tasks (from workplan.md)
 
-#### 3.1 Coarse Network Wrapper
-- **File:** `src/swin3d_dnp/models/coarse_net.py`
-- **Purpose:** Wrap MONAI's SwinUNETR for coarse-resolution processing
+#### 4.1 Masked Cross-Entropy
+- **File:** `src/swin3d_dnp/losses/ce.py`
 - **Implementation:**
   ```python
-  class CoarseNet(nn.Module):
-      def __init__(self, in_channels, out_channels, feature_size=48, ...):
-          # Use monai.networks.nets.SwinUNETR
-          # Output: coarse logits + encoder features for context
-
-      def forward(self, x_coarse):
-          # Returns: (logits, features_for_context)
-  ```
-- **Key considerations:**
-  - Feature size configurable (default 48)
-  - Must expose intermediate features for context fusion
-  - Output channels = Nlm (landmarks) + Corg (organs) + 1 (lesion)
-
-#### 3.2 Fine Network Wrapper
-- **File:** `src/swin3d_dnp/models/fine_net.py`
-- **Purpose:** Process high-res patches with coarse context
-- **Implementation:**
-  ```python
-  class FineNet(nn.Module):
-      def __init__(self, in_channels, context_channels, out_channels, ...):
-          # SwinUNETR + context fusion at bottleneck
-
-      def forward(self, x_fine, context_features):
-          # Fuse context at encoder bottleneck
-          # Returns: fine logits
+  def masked_cross_entropy(logits, target, valid_mask):
+      # logits: (B,C,D,H,W), target: (B,D,H,W) long
+      # valid_mask: (B,1,D,H,W)
+      loss = F.cross_entropy(logits, target, reduction="none")
+      vm = valid_mask[:,0]
+      return (loss * vm).sum() / (vm.sum() + 1e-8)
   ```
 
-#### 3.3 Context Fusion Layer
-- **File:** `src/swin3d_dnp/models/fusion.py`
-- **Purpose:** Fuse coarse context features with fine encoder features
-- **Implementation:**
-  ```python
-  class CoarseContextFusion(nn.Module):
-      def __init__(self, fine_channels, context_channels):
-          # Projection + concatenation or addition
+#### 4.2 Masked Dice Loss
+- **File:** `src/swin3d_dnp/losses/dice.py`
+- Per-class weighting based on valid voxels
+- Division-safe with EPS_DICE smooth factor
 
-      def forward(self, fine_features, context_features):
-          # context_features already sampled to match fine patch FOV
-          # Returns: fused features
-  ```
-- **Reference:** See `DifferentiableContextSampler` in `geometry/sampling.py` for context extraction
+#### 4.3 Focal Heatmap Loss
+- **File:** `src/swin3d_dnp/losses/focal.py`
+- CornerNet-style for keypoint/lesion heatmaps
+- Alpha/beta focusing parameters
 
-#### 3.4 Main Model Assembly
-- **File:** `src/swin3d_dnp/models/swin3d_dnp.py`
-- **Purpose:** Combine coarse + fine networks with context sampling
-- **Implementation:**
-  ```python
-  class Swin3DDNP(nn.Module):
-      def __init__(self, config):
-          self.coarse_net = CoarseNet(...)
-          self.fine_net = FineNet(...)
-          self.context_sampler = DifferentiableContextSampler(...)
-
-      def forward(self, x_full, x_coarse, patch_centers, spacing_full, spacing_coarse):
-          # 1. Coarse forward
-          coarse_logits, coarse_features = self.coarse_net(x_coarse)
-
-          # 2. Sample context for each patch
-          context = self.context_sampler(coarse_features, patch_centers, ...)
-
-          # 3. Fine forward (per patch or batched)
-          fine_logits = self.fine_net(patches, context)
-
-          return coarse_logits, fine_logits
-  ```
-
-#### 3.5 Network Tests
-- **File:** `tests/test_models.py`
-- **Tests needed:**
-  - Coarse net output shapes
-  - Fine net output shapes with context
-  - Fusion layer gradient flow
-  - Full model forward pass
-  - Context sampling integration
-
----
-
-## 5. Implementation Guidance
-
-### Critical Invariants (from CLAUDE.md)
-1. **`align_corners=False`** for ALL `grid_sample` usage
-2. Spatial tensor order: **(D, H, W)**
-3. `grid_sample` last dim order: **(x, y, z) = (W, H, D)**
-4. Labels: `mode="nearest"`, `padding_mode="zeros"`
-5. Images/features: `mode="bilinear"`, `padding_mode="border"`
-
-### Architecture Notes
-- Coarse context covers **same physical FOV** as fine patch
-- Context sampled **inside the model** after coarse forward
-- Use `extent_vox_in_src_from_spacings()` from `geometry/sampling.py`
-
-### Existing Utilities to Use
-```python
-# Context sampling (already implemented)
-from swin3d_dnp.geometry.sampling import (
-    DifferentiableContextSampler,
-    extent_vox_in_src_from_spacings,
-    sample_patch_from_full,
-)
-
-# Coordinate transforms
-from swin3d_dnp.geometry.coordinates import (
-    index_to_norm_acfalse,
-    norm_to_index_acfalse,
-)
-
-# Constants
-from swin3d_dnp.constants import (
-    EPS_DICE,
-    PHASE1_END, PHASE2_END,  # Training phases
-    DEFAULT_NMS_TOPK,
-)
-```
+#### 4.4 Loss Tests
+- **File:** `tests/test_losses.py`
+- Test masked loss ignores padded regions
+- Test dice is zero for perfect predictions
+- Test focal loss focuses on hard examples
 
 ---
 
@@ -216,11 +169,11 @@ src/swin3d_dnp/
 │   ├── ce.py             # ⬜ Milestone 4
 │   └── focal.py          # ⬜ Milestone 4
 ├── models/
-│   ├── __init__.py       # ⬜ Milestone 3
-│   ├── coarse_net.py     # ⬜ Milestone 3
-│   ├── fine_net.py       # ⬜ Milestone 3
-│   ├── fusion.py         # ⬜ Milestone 3
-│   └── swin3d_dnp.py     # ⬜ Milestone 3
+│   ├── __init__.py       # ✅ Complete
+│   ├── coarse_net.py     # ✅ Complete
+│   ├── fine_net.py       # ✅ Complete
+│   ├── fusion.py         # ✅ Complete
+│   └── swin3d_dnp.py     # ✅ Complete
 └── training/
     ├── __init__.py       # ⬜ Milestone 5
     ├── trainer.py        # ⬜ Milestone 5
@@ -229,17 +182,56 @@ src/swin3d_dnp/
 
 ---
 
-## 7. Commands Reference
+## 7. Usage Example
+
+```python
+from swin3d_dnp.models import build_simple_swin3d_dnp
+import torch
+
+# Build model
+model = build_simple_swin3d_dnp(
+    in_channels=1,
+    out_channels=3,
+    context_channels=32,
+)
+
+# Prepare inputs
+B = 2
+image_coarse = torch.randn(B, 1, 64, 64, 64)
+image_fine = torch.randn(B, 1, 32, 32, 32)
+centers_coarse_norm = torch.zeros(B, 3)  # Center of volume
+
+spacing_fine = torch.tensor([1.0, 1.0, 1.0])
+spacing_coarse = torch.tensor([2.0, 2.0, 2.0])
+
+# Forward pass
+model.set_phase(2)  # Enable end-to-end gradients
+coarse_logits, fine_logits = model(
+    image_coarse,
+    image_fine,
+    centers_coarse_norm,
+    fine_shape=(32, 32, 32),
+    spacing_fine_dhw_mm=spacing_fine,
+    spacing_coarse_dhw_mm=spacing_coarse,
+)
+```
+
+---
+
+## 8. Commands Reference
 
 ```bash
 # Install package
 pip install -e .
 
+# Install dependencies
+pip install torch monai einops pytest
+
 # Run all tests
-/usr/local/bin/python3 -m pytest tests/ -v
+python -m pytest tests/ -v
 
 # Run specific test file
-/usr/local/bin/python3 -m pytest tests/test_models.py -v
+python -m pytest tests/test_models.py -v
 
 # Type checking
 mypy src/swin3d_dnp/
@@ -250,29 +242,28 @@ ruff check src/
 
 ---
 
-## 8. Git Workflow
+## 9. Git Workflow
 
-- **Branch:** `claude/review-and-next-task-EzNTL`
+- **Current Branch:** `claude/review-project-status-B66VD`
 - **Remote:** `origin`
 - After changes:
   ```bash
   git add <files>
   git commit -m "Descriptive message"
-  git push -u origin claude/review-and-next-task-EzNTL
+  git push -u origin claude/review-project-status-B66VD
   ```
 
 ---
 
-## 9. Summary Checklist for Next Developer
+## 10. Summary Checklist for Next Developer
 
-- [ ] Review `CLAUDE.md` for invariants
-- [ ] Review `projectplan.md` for architecture details
+- [ ] Review `CLAUDE.md` for invariants (especially align_corners=False)
+- [ ] Review `projectplan.md` for loss function specifications
 - [ ] Investigate pre-existing test failure in `test_full_to_coarse_at_center`
-- [ ] Implement Milestone 3.1: Coarse Network Wrapper
-- [ ] Implement Milestone 3.2: Fine Network Wrapper
-- [ ] Implement Milestone 3.3: Context Fusion Layer
-- [ ] Implement Milestone 3.4: Main Model Assembly
-- [ ] Implement Milestone 3.5: Network Tests
+- [ ] Implement Milestone 4.1: Masked Cross-Entropy
+- [ ] Implement Milestone 4.2: Masked Dice Loss
+- [ ] Implement Milestone 4.3: Focal Heatmap Loss
+- [ ] Implement Milestone 4.4: Loss Tests
 - [ ] Update `workplan.md` to mark tasks complete
 - [ ] Commit and push changes
 
