@@ -13,33 +13,33 @@ Core coordinate transformations and sampling functions.
 
 ### Tasks
 
-- [ ] **1.1 Coordinate Helpers**
+- [x] **1.1 Coordinate Helpers**
   - Implement `index_to_norm_acfalse(u, N)`
   - Implement `norm_to_index_acfalse(n, N)`
   - File: `src/swin3d_dnp/geometry/coordinates.py`
 
-- [ ] **1.2 Full-to-Coarse Mapping**
+- [x] **1.2 Full-to-Coarse Mapping**
   - Implement `center_full_to_coarse_norm()`
   - Handle zyx <-> xyz conversion with affines
   - File: `src/swin3d_dnp/geometry/mapping.py`
 
-- [ ] **1.3 Coarse-to-Full Mapping**
+- [x] **1.3 Coarse-to-Full Mapping**
   - Implement `center_coarse_to_full_index()`
   - Required for inference proposal mapping
   - File: `src/swin3d_dnp/geometry/mapping.py`
 
-- [ ] **1.4 Fine Patch Sampler**
+- [x] **1.4 Fine Patch Sampler**
   - Implement `sample_patch_from_full()`
   - Support rotation, scaling, translation in world space
   - Compute valid_mask for out-of-bounds
   - File: `src/swin3d_dnp/geometry/sampling.py`
 
-- [ ] **1.5 Context Sampler**
+- [x] **1.5 Context Sampler**
   - Implement `extent_vox_in_src_from_spacings()`
   - Implement `DifferentiableContextSampler` class
   - File: `src/swin3d_dnp/geometry/sampling.py`
 
-- [ ] **1.6 Geometry Tests**
+- [x] **1.6 Geometry Tests**
   - Test coordinate mapping identity (n(u) inverse of u(n))
   - Test round-trip sampling on synthetic ramp volume
   - Test context sampler with encoded z,y,x ramps
@@ -54,24 +54,24 @@ NMS and proposal selection for lesion/landmark inference.
 
 ### Tasks
 
-- [ ] **2.1 Anisotropic NMS**
+- [x] **2.1 Anisotropic NMS**
   - Implement `nms_3d_aniso_mm()`
   - Handle mm-based distances with spacing
   - Support top-k selection
   - File: `src/swin3d_dnp/inference/nms.py`
 
-- [ ] **2.2 Boundary Band Sampling**
+- [x] **2.2 Boundary Band Sampling**
   - Implement `sample_boundary_band_center()`
   - Morphological dilation/erosion for boundary detection
   - Valid region masking for patch placement
   - File: `src/swin3d_dnp/data/sampling.py`
 
-- [ ] **2.3 Label Downsampling**
+- [x] **2.3 Label Downsampling**
   - Implement `downsample_label_coarse()`
   - Nearest for multi-class, maxpool for binary lesions
   - File: `src/swin3d_dnp/data/transforms.py`
 
-- [ ] **2.4 Proposal Tests**
+- [x] **2.4 Proposal Tests**
   - Test NMS produces correct number of proposals
   - Test boundary band correctly identifies edges
   - Test label downsampling preserves small objects
