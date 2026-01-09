@@ -1,0 +1,136 @@
+# Swin3D-DNP Default Configuration
+
+# Model architecture
+model:
+  coarse:
+    in_channels: 1
+    out_channels: 48
+    embed_dim: 48
+    depths: [2, 2, 6, 2]
+    num_heads: [3, 6, 12, 24]
+    window_size: [4, 4, 4]
+    mlp_ratio: 4.0
+    drop_rate: 0.0
+    attn_drop_rate: 0.0
+    drop_path_rate: 0.1
+
+  fine:
+    in_channels: 48  # After fusion
+    out_channels: 48
+    embed_dim: 48
+    depths: [2, 2, 2]
+    num_heads: [3, 6, 12]
+    window_size: [4, 4, 4]
+
+  fusion:
+    in_channels_image: 1
+    in_channels_context: 48
+    in_channels_probs: null  # Set to num_classes to include coarse probs
+    out_channels: 48
+    norm: instance
+
+# Data configuration
+data:
+  # Volume shapes
+  coarse_shape: [128, 128, 128]  # D, H, W
+  fine_shape: [96, 96, 96]
+
+  # Spacing in mm (typical values, override per dataset)
+  coarse_spacing_mm: [2.0, 2.0, 2.0]
+  fine_spacing_mm: [1.0, 1.0, 1.0]
+
+  # Patch sampling ratios
+  ratio_uniform: 0.30
+  ratio_positive: 0.30
+  ratio_boundary: 0.20
+  ratio_hardneg: 0.20
+
+  # Augmentation
+  augmentation:
+    rotation_range_deg: 15.0
+    scale_range: [0.9, 1.1]
+    translation_range_mm: 10.0
+    enable_flip: true
+    flip_axes: [0, 1, 2]
+
+# Training configuration
+training:
+  # Basic
+  batch_size: 1
+  num_workers: 4
+  epochs: 100
+  seed: 42
+
+  # Optimizer
+  optimizer:
+    type: AdamW
+    lr: 1e-4
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+
+  # Learning rate scheduler
+  scheduler:
+    type: CosineAnnealingWarmRestarts
+    T_0: 10
+    T_mult: 2
+    eta_min: 1e-6
+
+  # Phase schedule (fractions of total steps)
+  phases:
+    phase1_end: 0.10
+    phase2_end: 0.60
+
+  # Loss weights per phase
+  loss_weights:
+    phase1:
+      lambda0: 1.0  # Coarse loss
+      lambda1: 0.5  # Fine loss
+    phase2:
+      lambda0: 0.5
+      lambda1: 1.0
+    phase3:
+      lambda0: 0.3
+      lambda1: 1.0
+
+  # Hard negative mining
+  hardneg:
+    warmup_steps: 5000
+    batch_prob: 0.30
+
+  # Memory optimization
+  mixed_precision: true
+  gradient_checkpointing: true
+  accumulation_steps: 1
+
+  # Detach coarse context in phase 1 to save memory
+  detach_coarse_phase1: true
+
+# Inference configuration
+inference:
+  # NMS parameters
+  nms:
+    min_dist_mm: 10.0
+    threshold: 0.5
+    topk: 64
+
+  # Stitching
+  stitching:
+    overlap_ratio: 0.5  # 50% overlap
+    window_type: cos2
+
+  # Modes
+  mode: proposal  # proposal or dense_tiling
+
+# Task-specific settings
+task:
+  type: segmentation  # segmentation, landmark, or lesion
+  num_classes: 3
+  include_background: true
+
+# Logging
+logging:
+  log_interval: 100
+  save_interval: 1000
+  eval_interval: 1000
+  tensorboard: true
+  wandb: false
