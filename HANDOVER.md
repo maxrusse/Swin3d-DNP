@@ -109,30 +109,13 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 
 ## 5. Testing
 
-### Colab GPU Testing
-A Colab notebook is available for GPU-accelerated testing:
-- **File:** `notebooks/run_tests.ipynb`
-- **Features:**
-  - Auto-clones repo and installs dependencies
-  - Runs full test suite with coverage
-  - Optional push of results back to git
-  - GPU memory profiling
+See CLAUDE.md "Testing Protocol" for full workflow.
 
-### Local Testing
-```bash
-# Install
-pip install -e .
-pip install pytest pytest-cov
+- **Test sources:** `tests/`
+- **Test results:** `test_results/`
+- **Colab notebook:** `notebooks/run_tests.ipynb`
 
-# Run all tests
-python -m pytest tests/ -v
-
-# Run specific module
-python -m pytest tests/test_losses.py -v
-
-# With coverage
-python -m pytest tests/ --cov=swin3d_dnp
-```
+Testing is performed by external partner after each work step.
 
 ---
 

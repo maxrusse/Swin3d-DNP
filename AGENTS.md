@@ -28,9 +28,10 @@
 
 ### Phase 2: Verify Existing Code
 
-- [ ] Run tests locally: `python -m pytest tests/ -v`
-- [ ] **OR** Run Colab notebook: `notebooks/run_tests.ipynb`
+- [ ] Check `test_results/` for latest test results
+- [ ] Run tests locally if PyTorch available: `python -m pytest tests/ -v`
 - [ ] All tests should pass before you start
+- [ ] See CLAUDE.md "Testing Protocol" for full workflow
 
 ### Phase 3: Understand the Codebase
 
@@ -128,11 +129,11 @@ git push -u origin <branch-name>
 
 When you complete your work:
 
-1. **Run tests** - All must pass
-2. **Update HANDOVER.md** - Document what you completed
-3. **Update workplan.md** - Mark tasks as complete
-4. **Commit with clear message** - Describe changes
-5. **Push to branch** - Include test results
+1. **Update HANDOVER.md** - Document what you completed
+2. **Update workplan.md** - Mark tasks as complete
+3. **Commit with clear message** - Describe changes
+4. **Push to branch**
+5. **External partner runs tests** - See CLAUDE.md "Testing Protocol"
 
 ---
 

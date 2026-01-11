@@ -285,4 +285,6 @@ End-to-end testing and robustness.
 
 ## Testing
 
-For GPU-accelerated testing, use the Colab notebook: `notebooks/run_tests.ipynb`
+See CLAUDE.md "Testing Protocol" for details.
+
+Testing is performed by external partner after each work step using `notebooks/run_tests.ipynb`.
