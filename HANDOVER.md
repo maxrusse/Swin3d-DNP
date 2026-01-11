@@ -1,8 +1,8 @@
 # Handover Protocol - Swin3D-DNP Development
 
-**Date:** 2026-01-09
-**Branch:** `claude/review-project-status-B66VD`
-**Last Commit:** Milestone 3 - Networks & Fusion
+**Date:** 2026-01-11
+**Branch:** `claude/implement-swin3d-dnp-GFsJW`
+**Last Commit:** Milestone 4 - Loss Functions
 
 ---
 
@@ -48,98 +48,91 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 | 3.4 Main Model | `models/swin3d_dnp.py` | ✅ Done |
 | 3.5 Model Tests | `tests/test_models.py` | ✅ Done |
 
+#### Milestone 4: Loss Functions ✅ (NEW)
+| Task | File | Status |
+|------|------|--------|
+| 4.1 Masked Cross-Entropy | `losses/ce.py` | ✅ Done |
+| 4.2 Masked Dice Loss | `losses/dice.py` | ✅ Done |
+| 4.3 Focal Heatmap Loss | `losses/focal.py` | ✅ Done |
+| 4.4 Loss Tests | `tests/test_losses.py` | ✅ Done |
+
 ### Remaining Milestones
-- **Milestone 4:** Loss Functions (NEXT)
-- **Milestone 5:** Training Pipeline
-- **Milestone 6:** Inference Pipeline
+- **Milestone 5:** Training Pipeline (NEXT)
+- **Milestone 6:** Inference Pipeline (Stitching)
 - **Milestone 7:** Integration Tests
 
 ---
 
-## 3. Milestone 3 Implementation Summary
+## 3. Milestone 4 Implementation Summary
 
-### 3.1 CoarseNet (`models/coarse_net.py`)
-- Wraps MONAI's `SwinUNETR` for coarse-resolution processing
-- Returns both task logits and intermediate features for context fusion
-- Features extracted from encoder bottleneck and projected
-- Variants: `CoarseNet` (full), `CoarseNetLite` (testing)
+### 4.1 Masked Cross-Entropy (`losses/ce.py`)
+- `masked_cross_entropy()` - CE loss with valid_mask exclusion
+- `masked_cross_entropy_per_class()` - Per-class breakdown for analysis
+- Handles all-invalid masks gracefully (returns ~0)
+- Supports class weights and label smoothing
 
-### 3.2 FineNet (`models/fine_net.py`)
-- Wraps `SwinUNETR` for high-resolution patch processing
-- Accepts fused input (image + context features)
-- Variants: `FineNet`, `FineNetLite`, `SimpleFineNet` (conv-based for fast testing)
-
-### 3.3 CoarseContextFusion (`models/fusion.py`)
-- Fuses fine image with sampled coarse context features
-- Optional coarse probability conditioning via softmax/sigmoid
-- Configurable normalization (instance/batch/layer)
-- Variants: `CoarseContextFusion`, `AdaptiveCoarseContextFusion`, `SimpleFusion`
-
-### 3.4 Swin3DDNP (`models/swin3d_dnp.py`)
-- Complete hierarchical model combining all components
-- Phase-controlled gradient flow via `set_phase()`
-- Phase 1: detach context (memory-efficient warmup)
-- Phase 2-3: end-to-end gradients
-- Builder functions: `build_swin3d_dnp()`, `build_swin3d_dnp_lite()`, `build_simple_swin3d_dnp()`
-
-### 3.5 Model Tests (`tests/test_models.py`)
-- Forward pass shape tests
-- Gradient flow tests with/without detach
-- Phase switching tests
-- Context sampler integration tests
-- Fusion layer tests
-
----
-
-## 4. Known Issues
-
-### Pre-existing Test Failure
-```
-FAILED tests/test_geometry.py::TestMapping::test_full_to_coarse_at_center
-```
-- **Location:** `tests/test_geometry.py:106`
-- **Issue:** Test expects center point (63.5, 63.5, 63.5) in 128³ volume to map to normalized (0,0,0) in 64³ coarse volume, but gets (1,1,1)
-- **Likely cause:** Either bug in `center_full_to_coarse_norm()` or incorrect test expectation
-- **Impact:** Does not block Milestone 3+, but should be investigated
-
-### Test Environment Note
-- Dependencies: PyTorch, MONAI, einops required
-- Install: `pip install torch monai einops`
-- Run tests: `python -m pytest tests/ -v`
-
----
-
-## 5. Next Milestone: Loss Functions
-
-### Milestone 4 Tasks (from workplan.md)
-
-#### 4.1 Masked Cross-Entropy
-- **File:** `src/swin3d_dnp/losses/ce.py`
-- **Implementation:**
-  ```python
-  def masked_cross_entropy(logits, target, valid_mask):
-      # logits: (B,C,D,H,W), target: (B,D,H,W) long
-      # valid_mask: (B,1,D,H,W)
-      loss = F.cross_entropy(logits, target, reduction="none")
-      vm = valid_mask[:,0]
-      return (loss * vm).sum() / (vm.sum() + 1e-8)
-  ```
-
-#### 4.2 Masked Dice Loss
-- **File:** `src/swin3d_dnp/losses/dice.py`
-- Per-class weighting based on valid voxels
+### 4.2 Masked Dice Loss (`losses/dice.py`)
+- `masked_dice_loss()` - Standard Dice with valid_mask
+- `masked_dice_loss_per_class()` - Per-class Dice for analysis
+- `masked_generalized_dice_loss()` - GDL for class imbalance
+- `dice_score()` - Dice coefficient for evaluation
 - Division-safe with EPS_DICE smooth factor
+- Supports one-hot or class index targets
 
-#### 4.3 Focal Heatmap Loss
-- **File:** `src/swin3d_dnp/losses/focal.py`
-- CornerNet-style for keypoint/lesion heatmaps
-- Alpha/beta focusing parameters
+### 4.3 Focal Heatmap Loss (`losses/focal.py`)
+- `focal_heatmap_loss()` - CornerNet-style for keypoint heatmaps
+- `focal_heatmap_loss_from_logits()` - Accepts raw logits
+- `focal_cross_entropy_loss()` - Lin et al. style for classification
+- `quality_focal_loss()` - For joint classification + quality
+- `offset_loss()` - Sub-voxel offset regression
+- Configurable alpha/beta/gamma focusing parameters
 
-#### 4.4 Loss Tests
-- **File:** `tests/test_losses.py`
-- Test masked loss ignores padded regions
-- Test dice is zero for perfect predictions
-- Test focal loss focuses on hard examples
+### 4.4 Loss Tests (`tests/test_losses.py`)
+- 25+ test cases covering:
+  - Valid mask exclusion behavior
+  - Perfect/worst prediction loss values
+  - Gradient flow and backpropagation
+  - Numerical stability edge cases
+  - Focal focusing behavior verification
+
+---
+
+## 4. Bug Fixes
+
+### Fixed: test_full_to_coarse_at_center
+- **Issue:** Test used same affine for full and coarse volumes
+- **Root cause:** With identical affines, index 63.5 maps to itself, giving normalized 1.0 not 0.0
+- **Fix:** Test now uses proper 2x spacing coarse affine to maintain same physical FOV
+- **Location:** `tests/test_geometry.py:92-128`
+
+---
+
+## 5. Testing
+
+### Colab GPU Testing
+A Colab notebook is available for GPU-accelerated testing:
+- **File:** `notebooks/run_tests.ipynb`
+- **Features:**
+  - Auto-clones repo and installs dependencies
+  - Runs full test suite with coverage
+  - Optional push of results back to git
+  - GPU memory profiling
+
+### Local Testing
+```bash
+# Install
+pip install -e .
+pip install pytest pytest-cov
+
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific module
+python -m pytest tests/test_losses.py -v
+
+# With coverage
+python -m pytest tests/ --cov=swin3d_dnp
+```
 
 ---
 
@@ -164,10 +157,10 @@ src/swin3d_dnp/
 │   ├── stitching.py      # ⬜ Milestone 6
 │   └── predictor.py      # ⬜ Milestone 6
 ├── losses/
-│   ├── __init__.py       # ⬜ Milestone 4
-│   ├── dice.py           # ⬜ Milestone 4
-│   ├── ce.py             # ⬜ Milestone 4
-│   └── focal.py          # ⬜ Milestone 4
+│   ├── __init__.py       # ✅ Complete (NEW)
+│   ├── ce.py             # ✅ Complete (NEW)
+│   ├── dice.py           # ✅ Complete (NEW)
+│   └── focal.py          # ✅ Complete (NEW)
 ├── models/
 │   ├── __init__.py       # ✅ Complete
 │   ├── coarse_net.py     # ✅ Complete
@@ -178,14 +171,64 @@ src/swin3d_dnp/
     ├── __init__.py       # ⬜ Milestone 5
     ├── trainer.py        # ⬜ Milestone 5
     └── scheduler.py      # ⬜ Milestone 5
+
+notebooks/
+└── run_tests.ipynb       # ✅ Complete (NEW) - Colab test runner
+
+tests/
+├── conftest.py           # ✅ Fixtures
+├── test_geometry.py      # ✅ Complete (fixed)
+├── test_models.py        # ✅ Complete
+├── test_inference.py     # ✅ Complete
+└── test_losses.py        # ✅ Complete (NEW)
 ```
 
 ---
 
-## 7. Usage Example
+## 7. Next Milestone: Training Pipeline
+
+### Milestone 5 Tasks (from workplan.md)
+
+#### 5.1 Dataset Implementation
+- **File:** `src/swin3d_dnp/data/dataset.py`
+- Define data contracts (image_full, label_full, affine, spacing)
+- Implement case loading and preprocessing
+- Support NIfTI and numpy formats
+
+#### 5.2 Patch Sampling Strategies
+- **File:** `src/swin3d_dnp/data/sampling.py` (extend)
+- Uniform sampling (30%)
+- Positive sampling from GT (30%)
+- Boundary band sampling (20%)
+- Hard negative mining (20%)
+
+#### 5.3 Phase Scheduler
+- **File:** `src/swin3d_dnp/training/scheduler.py`
+- Phase 1 (0-10%): Coarse warmup, detach context
+- Phase 2 (10-60%): Transition, enable hard negative mining
+- Phase 3 (60-100%): End-to-end fine-tuning
+- Lambda scheduling for loss weighting
+
+#### 5.4 Training Loop
+- **File:** `src/swin3d_dnp/training/trainer.py`
+- Mixed precision (bf16/fp16)
+- Gradient accumulation
+- Checkpointing
+- Logging and metrics
+
+#### 5.5 Worker Seeding
+- **File:** `src/swin3d_dnp/training/utils.py`
+- `seed_everything()` for reproducibility
+- `get_worker_init_fn()` for dataloader
+- DDP-safe seeding
+
+---
+
+## 8. Usage Example
 
 ```python
 from swin3d_dnp.models import build_simple_swin3d_dnp
+from swin3d_dnp.losses import masked_cross_entropy, masked_dice_loss
 import torch
 
 # Build model
@@ -199,13 +242,15 @@ model = build_simple_swin3d_dnp(
 B = 2
 image_coarse = torch.randn(B, 1, 64, 64, 64)
 image_fine = torch.randn(B, 1, 32, 32, 32)
-centers_coarse_norm = torch.zeros(B, 3)  # Center of volume
+centers_coarse_norm = torch.zeros(B, 3)
+target = torch.randint(0, 3, (B, 32, 32, 32))
+valid_mask = torch.ones(B, 1, 32, 32, 32)
 
 spacing_fine = torch.tensor([1.0, 1.0, 1.0])
 spacing_coarse = torch.tensor([2.0, 2.0, 2.0])
 
 # Forward pass
-model.set_phase(2)  # Enable end-to-end gradients
+model.set_phase(2)
 coarse_logits, fine_logits = model(
     image_coarse,
     image_fine,
@@ -214,24 +259,29 @@ coarse_logits, fine_logits = model(
     spacing_fine_dhw_mm=spacing_fine,
     spacing_coarse_dhw_mm=spacing_coarse,
 )
+
+# Compute losses
+ce_loss = masked_cross_entropy(fine_logits, target, valid_mask)
+dice_loss = masked_dice_loss(fine_logits, target.unsqueeze(1), valid_mask)
+total_loss = ce_loss + dice_loss
 ```
 
 ---
 
-## 8. Commands Reference
+## 9. Commands Reference
 
 ```bash
 # Install package
 pip install -e .
 
 # Install dependencies
-pip install torch monai einops pytest
+pip install torch monai einops pytest pytest-cov
 
 # Run all tests
 python -m pytest tests/ -v
 
 # Run specific test file
-python -m pytest tests/test_models.py -v
+python -m pytest tests/test_losses.py -v
 
 # Type checking
 mypy src/swin3d_dnp/
@@ -242,30 +292,34 @@ ruff check src/
 
 ---
 
-## 9. Git Workflow
+## 10. Git Workflow
 
-- **Current Branch:** `claude/review-project-status-B66VD`
+- **Current Branch:** `claude/implement-swin3d-dnp-GFsJW`
 - **Remote:** `origin`
 - After changes:
   ```bash
   git add <files>
   git commit -m "Descriptive message"
-  git push -u origin claude/review-project-status-B66VD
+  git push -u origin claude/implement-swin3d-dnp-GFsJW
   ```
 
 ---
 
-## 10. Summary Checklist for Next Developer
+## 11. Summary Checklist for Next Developer
 
-- [ ] Review `CLAUDE.md` for invariants (especially align_corners=False)
-- [ ] Review `projectplan.md` for loss function specifications
-- [ ] Investigate pre-existing test failure in `test_full_to_coarse_at_center`
-- [ ] Implement Milestone 4.1: Masked Cross-Entropy
-- [ ] Implement Milestone 4.2: Masked Dice Loss
-- [ ] Implement Milestone 4.3: Focal Heatmap Loss
-- [ ] Implement Milestone 4.4: Loss Tests
-- [ ] Update `workplan.md` to mark tasks complete
-- [ ] Commit and push changes
+- [x] Review `CLAUDE.md` for invariants (especially align_corners=False)
+- [x] Review `projectplan.md` for specifications
+- [x] Fixed pre-existing test failure in `test_full_to_coarse_at_center`
+- [x] Implement Milestone 4.1: Masked Cross-Entropy
+- [x] Implement Milestone 4.2: Masked Dice Loss
+- [x] Implement Milestone 4.3: Focal Heatmap Loss
+- [x] Implement Milestone 4.4: Loss Tests
+- [x] Update `workplan.md` to mark tasks complete
+- [ ] Implement Milestone 5.1: Dataset Implementation
+- [ ] Implement Milestone 5.2: Patch Sampling Strategies
+- [ ] Implement Milestone 5.3: Phase Scheduler
+- [ ] Implement Milestone 5.4: Training Loop
+- [ ] Implement Milestone 5.5: Worker Seeding
 
 ---
 

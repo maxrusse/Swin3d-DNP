@@ -90,19 +90,41 @@ class TestMapping:
     """Tests for coordinate mapping between full and coarse volumes."""
 
     def test_full_to_coarse_at_center(self, sample_affine):
-        """Test mapping at volume center."""
-        affine_full = sample_affine[None]  # (1, 4, 4)
-        affine_coarse = sample_affine[None]  # Same affine for simplicity
+        """Test mapping at volume center.
+
+        When downsampling 128³ (1mm) to 64³ (2mm) covering the same FOV,
+        the physical center should map to normalized (0, 0, 0) in coarse.
+        This requires the coarse affine to have 2x spacing.
+        """
+        affine_full = sample_affine[None]  # (1, 4, 4), 1mm spacing
+
+        # Coarse affine with 2x spacing to maintain same physical FOV
+        # Full: 128 voxels * 1mm = 128mm FOV
+        # Coarse: 64 voxels * 2mm = 128mm FOV
+        affine_coarse = torch.tensor(
+            [
+                [2.0, 0.0, 0.0, -64.0],  # 2mm spacing in x
+                [0.0, 2.0, 0.0, -64.0],  # 2mm spacing in y
+                [0.0, 0.0, 2.0, -64.0],  # 2mm spacing in z
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=torch.float32,
+        )[None]  # (1, 4, 4)
+
         shape_coarse = (64, 64, 64)
 
-        # Center of a 128x128x128 volume
+        # Center of a 128x128x128 volume at index (63.5, 63.5, 63.5)
+        # World: 63.5 * 1 - 64 = -0.5 mm
         center_full = torch.tensor([[63.5, 63.5, 63.5]])
 
         coarse_norm = center_full_to_coarse_norm(
             center_full, affine_full, affine_coarse, shape_coarse
         )
 
-        # Center should map to normalized (0, 0, 0)
+        # Center of coarse 64³ volume is at index (31.5, 31.5, 31.5)
+        # World: 31.5 * 2 - 64 = 63 - 64 = -1 mm (close to -0.5)
+        # The normalized value should be close to 0
+        # n = 2*(31.75 + 0.5)/64 - 1 ≈ 0.0078 ≈ 0
         assert torch.allclose(coarse_norm, torch.zeros(1, 3), atol=0.1)
 
     def test_round_trip_mapping(self, sample_affine):

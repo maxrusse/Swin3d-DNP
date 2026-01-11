@@ -121,26 +121,30 @@ Masked losses for handling partial volumes.
 
 ### Tasks
 
-- [ ] **4.1 Masked Cross-Entropy**
+- [x] **4.1 Masked Cross-Entropy**
   - Implement `masked_cross_entropy()`
   - Apply valid_mask to exclude padded regions
   - File: `src/swin3d_dnp/losses/ce.py`
 
-- [ ] **4.2 Masked Dice Loss**
+- [x] **4.2 Masked Dice Loss**
   - Implement `masked_dice_loss()`
   - Per-class weighting based on valid voxels
   - Division-safe with smooth factor
+  - Includes Generalized Dice Loss variant
   - File: `src/swin3d_dnp/losses/dice.py`
 
-- [ ] **4.3 Focal Heatmap Loss**
-  - Implement `focal_heatmap_loss()`
-  - CornerNet-style for keypoint heatmaps
+- [x] **4.3 Focal Heatmap Loss**
+  - Implement `focal_heatmap_loss()` (CornerNet-style)
+  - Implement `focal_cross_entropy_loss()` (Lin et al. style)
+  - Implement `offset_loss()` for sub-voxel localization
   - File: `src/swin3d_dnp/losses/focal.py`
 
-- [ ] **4.4 Loss Tests**
+- [x] **4.4 Loss Tests**
   - Test masked loss ignores padded regions
   - Test dice is zero for perfect predictions
   - Test focal loss focuses on hard examples
+  - Test numerical stability edge cases
+  - Test gradient flow through all losses
   - File: `tests/test_losses.py`
 
 ---
@@ -271,8 +275,14 @@ End-to-end testing and robustness.
 
 ## Next Steps
 
-1. Complete Milestone 1 (Geometry Foundation) first - this is the critical foundation
-2. Milestone 4 (Losses) can be done in parallel with Milestone 2
-3. Milestone 3 (Networks) depends on Milestone 1 completion
-4. Milestone 5-6 depend on Milestones 1-4
-5. Milestone 7 is final integration and testing
+1. ~~Complete Milestone 1 (Geometry Foundation)~~ ✅ Done
+2. ~~Complete Milestone 2 (Proposal Engine)~~ ✅ Done
+3. ~~Complete Milestone 3 (Networks & Fusion)~~ ✅ Done
+4. ~~Complete Milestone 4 (Loss Functions)~~ ✅ Done
+5. **Next: Milestone 5 (Training Pipeline)** - Phase scheduler, patch sampling
+6. Milestone 6 (Inference Pipeline) - Stitching, dense tiling
+7. Milestone 7 (Validation & Integration) - Final testing
+
+## Testing
+
+For GPU-accelerated testing, use the Colab notebook: `notebooks/run_tests.ipynb`
