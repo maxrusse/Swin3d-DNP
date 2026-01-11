@@ -101,35 +101,32 @@ ruff format src/
 
 ---
 
-## Handover Testing Protocol
+## Testing Protocol
 
-**CRITICAL:** Every milestone handover must include verified test results.
+**Workflow:** Developer writes code → External partner runs tests → Results committed to repo.
 
-### Pre-Handover Checklist
+### File Locations
 
-1. **Run tests locally** (if PyTorch available):
-   ```bash
-   python -m pytest tests/ -v --tb=short
-   ```
+| Path | Description |
+|------|-------------|
+| `tests/` | Unit test source files (pytest) |
+| `test_results/` | Downloaded results from Colab |
+| `notebooks/run_tests.ipynb` | Colab GPU test runner |
 
-2. **Run tests on Colab** (for GPU verification):
-   - Open `notebooks/run_tests.ipynb` in Google Colab
-   - Enable GPU runtime
-   - Run all cells
-   - Verify all tests pass
-   - Optionally push results to repo
+### For External Tester
 
-3. **Document results** in HANDOVER.md:
-   - Test pass/fail summary
-   - Any known issues
-   - GPU memory usage (if relevant)
+1. Open `notebooks/run_tests.ipynb` in Google Colab
+2. Enable GPU runtime (Runtime > Change runtime type > GPU)
+3. Run all cells
+4. Download `results.txt` when prompted
+5. Rename to `results_YYYYMMDD.txt` and place in `test_results/`
+6. Commit and push to repo
 
-### Post-Handover Verification
+### For Developer
 
-New developers should:
-1. Clone the repo
-2. Run the Colab notebook to verify environment
-3. Confirm all existing tests pass before making changes
+- Write tests in `tests/` for new functionality
+- Run locally if PyTorch available: `python -m pytest tests/ -v`
+- Wait for external tester to verify on Colab after each work step
 
 ---
 
@@ -168,6 +165,8 @@ swin3d_dnp/
 │   ├── test_losses.py         # Loss function tests
 │   ├── test_models.py         # Network tests
 │   └── test_inference.py      # NMS and inference tests
+├── test_results/              # Downloaded Colab test results
+│   └── results_YYYYMMDD.txt   # Test output files
 ├── notebooks/
 │   └── run_tests.ipynb        # Colab test runner
 └── configs/

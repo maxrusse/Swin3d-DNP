@@ -1,0 +1,2 @@
+# This file ensures the test_results directory is tracked by git.
+# Place downloaded results.txt files here with naming: results_YYYYMMDD.txt
