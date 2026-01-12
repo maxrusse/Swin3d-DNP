@@ -88,6 +88,7 @@ All 7 milestones have been completed. The implementation is ready for external t
 
 ### Recent Maintenance Updates
 - Added a code simplification worklist (`code_simplification_worklist.md`) and performed a small readability refactor in `generate_tile_positions` to reuse computed ranges without changing behavior.
+- Added dataset/trainer smoke tests and corrected trainer loss masking and coarse-center mapping usage to align with geometry/loss contracts.
 - Simplified inference predictor setup by centralizing coarse-stage preparation and patch-start calculation helpers.
 
 ---

@@ -188,15 +188,16 @@ class Trainer:
         metrics = {}
 
         # Coarse loss (no masking needed, full volume is valid)
+        coarse_valid_mask = torch.ones_like(label_coarse, dtype=torch.float32).unsqueeze(1)
         coarse_ce = masked_cross_entropy(
             coarse_logits,
             label_coarse,
-            valid_mask=None,
+            valid_mask=coarse_valid_mask,
         )
         coarse_dice = masked_dice_loss(
-            torch.sigmoid(coarse_logits),
-            (label_coarse > 0).float().unsqueeze(1),
-            valid_mask=None,
+            coarse_logits,
+            label_coarse.unsqueeze(1),
+            valid_mask=coarse_valid_mask,
         )
         loss_coarse = (
             self.config.ce_weight * coarse_ce + self.config.dice_weight * coarse_dice
@@ -213,8 +214,8 @@ class Trainer:
             valid_mask=valid_mask,
         )
         fine_dice = masked_dice_loss(
-            torch.sigmoid(fine_logits),
-            (label_fine > 0).float().unsqueeze(1),
+            fine_logits,
+            label_fine.unsqueeze(1),
             valid_mask=valid_mask,
         )
         loss_fine = self.config.ce_weight * fine_ce + self.config.dice_weight * fine_dice
@@ -278,7 +279,6 @@ class Trainer:
             center_full_zyx,
             affine_full,
             affine_coarse,
-            tuple(image_full.shape[2:]),
             tuple(image_coarse.shape[2:]),
         )
 
@@ -461,7 +461,6 @@ class Trainer:
                 center_full_zyx,
                 affine_full,
                 affine_coarse,
-                tuple(image_full.shape[2:]),
                 tuple(image_coarse.shape[2:]),
             )
 

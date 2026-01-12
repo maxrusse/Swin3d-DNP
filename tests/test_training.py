@@ -18,6 +18,8 @@ from swin3d_dnp.training import (
     estimate_memory_gb,
     get_memory_mitigation_tips,
 )
+from swin3d_dnp.data.dataset import Swin3DDNPDataset, TrainingPatchDataset
+from swin3d_dnp.training.trainer import Trainer, TrainerConfig
 from swin3d_dnp.data.sampling import (
     PatchSampler,
     sample_uniform_center,
@@ -25,6 +27,39 @@ from swin3d_dnp.data.sampling import (
     sample_boundary_band_center,
     sample_mixed_centers,
 )
+
+
+class DummyTrainerModel(torch.nn.Module):
+    """Minimal model for trainer smoke tests."""
+
+    def __init__(self, num_classes: int = 2) -> None:
+        super().__init__()
+        self.num_classes = num_classes
+        self.weight = torch.nn.Parameter(torch.tensor(1.0))
+        self.phase = 1
+
+    def set_phase(self, phase: int) -> None:
+        self.phase = phase
+
+    def forward(
+        self,
+        image_coarse: torch.Tensor,
+        image_fine: torch.Tensor,
+        centers_coarse_norm_dhw: torch.Tensor,
+        fine_shape: tuple[int, int, int],
+        spacing_fine_dhw_mm: torch.Tensor,
+        spacing_coarse_dhw_mm: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        B, _, Dc, Hc, Wc = image_coarse.shape
+        Bf, _, Df, Hf, Wf = image_fine.shape
+        assert B == Bf
+        coarse_logits = self.weight * torch.ones(
+            (B, self.num_classes, Dc, Hc, Wc), device=image_coarse.device
+        )
+        fine_logits = self.weight * torch.ones(
+            (B, self.num_classes, Df, Hf, Wf), device=image_fine.device
+        )
+        return coarse_logits, fine_logits
 
 
 class TestPhaseScheduler:
@@ -229,6 +264,96 @@ class TestMemoryEstimation:
         tips = get_memory_mitigation_tips(available_gb=48.0, required_gb=24.0)
 
         assert "Memory requirements satisfied" in tips[0]
+
+
+class TestDatasetTrainerSmoke:
+    """Smoke tests for dataset and trainer wiring."""
+
+    def test_dataset_outputs_expected_keys(self, tmp_path):
+        """Ensure dataset emits required tensors and coarse views."""
+        image = np.arange(16 * 16 * 16, dtype=np.float32).reshape(16, 16, 16)
+        label = np.zeros((16, 16, 16), dtype=np.int64)
+        label[4:12, 4:12, 4:12] = 1
+
+        image_path = tmp_path / "image.npy"
+        label_path = tmp_path / "label.npy"
+        np.save(image_path, image)
+        np.save(label_path, label)
+
+        case_list = [
+            {
+                "image_path": str(image_path),
+                "label_path": str(label_path),
+                "case_id": "case-001",
+                "affine": np.eye(4, dtype=np.float32),
+            }
+        ]
+
+        dataset = Swin3DDNPDataset(case_list, coarse_shape=(8, 8, 8))
+        sample = dataset[0]
+
+        assert sample["image_full"].shape == (1, 16, 16, 16)
+        assert sample["label_full"].shape == (16, 16, 16)
+        assert sample["image_coarse"].shape == (1, 8, 8, 8)
+        assert sample["label_coarse"].shape == (8, 8, 8)
+        assert sample["spacing_full_dhw_mm"].shape == (3,)
+        assert sample["spacing_coarse_dhw_mm"].shape == (3,)
+
+        cached = dataset[0]
+        assert cached["case_id"] == "case-001"
+
+    def test_trainer_single_step_smoke(self, tmp_path):
+        """Run a single trainer step to verify dataset + trainer wiring."""
+        image = np.arange(16 * 16 * 16, dtype=np.float32).reshape(16, 16, 16)
+        label = np.zeros((16, 16, 16), dtype=np.int64)
+        label[4:12, 4:12, 4:12] = 1
+
+        image_path = tmp_path / "image.npy"
+        label_path = tmp_path / "label.npy"
+        np.save(image_path, image)
+        np.save(label_path, label)
+
+        case_list = [
+            {
+                "image_path": str(image_path),
+                "label_path": str(label_path),
+                "case_id": "case-002",
+                "affine": np.eye(4, dtype=np.float32),
+            }
+        ]
+
+        base_dataset = Swin3DDNPDataset(case_list, coarse_shape=(8, 8, 8))
+        patch_dataset = TrainingPatchDataset(
+            base_dataset,
+            fine_shape=(8, 8, 8),
+            patches_per_volume=1,
+            ratio_uniform=1.0,
+            ratio_positive=0.0,
+            ratio_boundary=0.0,
+            ratio_hardneg=0.0,
+        )
+
+        loader = torch.utils.data.DataLoader(patch_dataset, batch_size=1)
+        batch = next(iter(loader))
+
+        model = DummyTrainerModel(num_classes=2)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        config = TrainerConfig(
+            total_steps=1,
+            batch_size=1,
+            accumulation_steps=1,
+            use_amp=False,
+            device="cpu",
+            fine_shape=(8, 8, 8),
+            coarse_shape=(8, 8, 8),
+            checkpoint_dir=str(tmp_path / "checkpoints"),
+        )
+
+        trainer = Trainer(model, optimizer, loader, config)
+        metrics = trainer._train_step(batch)
+
+        assert "loss_total" in metrics
+        assert metrics["loss_total"] > 0.0
 
 
 class TestPatchSampler:
