@@ -451,6 +451,7 @@ class TestMoveToDevice:
 
         moved = move_batch_to_device(batch, device)
 
-        assert moved["tensor1"].device == device
-        assert moved["tensor2"].device == device
+        # Compare device type (cuda:0 == cuda when checking type)
+        assert moved["tensor1"].device.type == device.type
+        assert moved["tensor2"].device.type == device.type
         assert moved["non_tensor"] == "string_value"

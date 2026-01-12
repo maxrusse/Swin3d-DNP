@@ -71,11 +71,11 @@ def get_worker_init_fn(base_seed: int) -> Callable[[int], None]:
 
         # MONAI has its own random state management
         try:
-            from monai.data import set_rnd
+            from monai.utils import set_determinism
 
-            set_rnd(seed)
-        except ImportError:
-            pass  # MONAI not available
+            set_determinism(seed=seed)
+        except (ImportError, TypeError):
+            pass  # MONAI not available or API changed
 
     return worker_init_fn
 
