@@ -1,8 +1,8 @@
 # Handover Protocol - Swin3D-DNP Development
 
 **Date:** 2026-01-12
-**Branch:** `claude/implement-swin3d-dnp-HaFsX`
-**Last Commit:** Milestone 5 - Training Pipeline
+**Branch:** `claude/implement-swin3d-dnp-V8X1q`
+**Last Commit:** Milestone 6 - Inference Pipeline
 
 ---
 
@@ -66,9 +66,17 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 | 5.5 Training Loop | `training/trainer.py` | ✅ Done |
 | 5.6 Worker Seeding | `training/utils.py` | ✅ Done |
 
+#### Milestone 6: Inference Pipeline ✅ (NEW)
+| Task | File | Status |
+|------|------|--------|
+| 6.1 Stitching Window | `inference/stitching.py` | ✅ Done |
+| 6.2 Patch Stitching | `inference/stitching.py` | ✅ Done |
+| 6.3 Proposal-Driven Inference | `inference/predictor.py` | ✅ Done |
+| 6.4 Dense Tiling Inference | `inference/predictor.py` | ✅ Done |
+| 6.5 Inference Tests | `tests/test_inference.py` | ✅ Done |
+
 ### Remaining Milestones
-- **Milestone 6:** Inference Pipeline (NEXT)
-- **Milestone 7:** Integration Tests
+- **Milestone 7:** Validation & Integration Tests (NEXT)
 
 ---
 
@@ -156,10 +164,10 @@ src/swin3d_dnp/
 │   ├── sampling.py       # ✅ Complete (extended)
 │   └── transforms.py     # ✅ Complete
 ├── inference/
-│   ├── __init__.py       # ✅ Complete
+│   ├── __init__.py       # ✅ Complete (updated)
 │   ├── nms.py            # ✅ Complete
-│   ├── stitching.py      # ⬜ Milestone 6
-│   └── predictor.py      # ⬜ Milestone 6
+│   ├── stitching.py      # ✅ Complete (NEW)
+│   └── predictor.py      # ✅ Complete (NEW)
 ├── losses/
 │   ├── __init__.py       # ✅ Complete
 │   ├── ce.py             # ✅ Complete
@@ -184,41 +192,49 @@ tests/
 ├── conftest.py           # ✅ Fixtures
 ├── test_geometry.py      # ✅ Complete
 ├── test_models.py        # ✅ Complete
-├── test_inference.py     # ✅ Complete
+├── test_inference.py     # ✅ Complete (extended with stitching tests)
 ├── test_losses.py        # ✅ Complete
-└── test_training.py      # ✅ Complete (NEW)
+└── test_training.py      # ✅ Complete
 ```
 
 ---
 
-## 5. Next Milestone: Inference Pipeline
+## 5. Milestone 6 Implementation Summary
 
-### Milestone 6 Tasks (from workplan.md)
+### 6.1 Stitching Window (`inference/stitching.py`)
+- `cos2_window_1d(n)` - 1D cos^2 window with non-zero edges
+- `cos2_window_3d(shape)` - Separable 3D window (outer product)
 
-#### 6.1 Stitching Window
-- **File:** `src/swin3d_dnp/inference/stitching.py`
-- Implement `cos2_window_1d()` and `cos2_window_3d()`
-- Non-zero edges for numerical stability
+### 6.2 Patch Stitching (`inference/stitching.py`)
+- `stitch_patches_to_volume()` - Weighted overlap-add stitching
+- Handles boundary patches correctly
+- `generate_tile_positions()` - Grid of patch positions with configurable overlap
 
-#### 6.2 Patch Stitching
-- **File:** `src/swin3d_dnp/inference/stitching.py`
-- Implement `stitch_patches_to_volume()`
-- Weighted overlap-add
-- Boundary handling
+### 6.3 Proposal-Driven Inference (`inference/predictor.py`)
+- `Predictor` class with `predict_proposal()` method
+- NMS on coarse predictions to get proposals
+- Maps proposals from coarse to full resolution via affines
+- Samples and processes fine patches at proposal locations
+- Stitches results using cos^2 window
 
-#### 6.3 Proposal-Driven Inference
-- **File:** `src/swin3d_dnp/inference/predictor.py`
-- Lesion/landmark mode with NMS proposals
-- Map proposals through affines
+### 6.4 Dense Tiling Inference (`inference/predictor.py`)
+- `Predictor` class with `predict_dense()` method
+- Generates overlapping tiles covering entire volume
+- Processes tiles in batches for efficiency
+- `BoundaryRefinementPredictor` - Specialized for uncertain boundary refinement
 
-#### 6.4 Dense Tiling Inference
-- **File:** `src/swin3d_dnp/inference/predictor.py`
-- Organ mode with overlapping tiles
-- Configurable stride (50%/25% overlap)
+### 6.5 Inference Tests (`tests/test_inference.py`)
+- `TestStitchingWindow` - Window shape, range, symmetry, non-zero edges
+- `TestStitching` - Single patch, uniform constant, overlapping, boundaries
+- `TestTilePositions` - Coverage, overlap fraction, small volumes
+- `TestProposalMapping` - Identity affines, round-trip, translation, anisotropic
 
-#### 6.5 Inference Tests
-- Test stitching uniformity
-- Test proposal mapping round-trip
+### Key Features
+- `InferenceConfig` dataclass for configuration
+- Mixed precision support (AMP)
+- Batched patch processing
+- Both proposal-driven and dense tiling modes
+- Boundary refinement specialized predictor
 
 ---
 
@@ -313,6 +329,7 @@ ruff check src/
 
 ## 9. Summary Checklist for Next Developer
 
+### Completed Tasks
 - [x] Review `CLAUDE.md` for invariants (especially align_corners=False)
 - [x] Review `projectplan.md` for specifications
 - [x] Implement Milestone 5.1: Dataset Implementation
@@ -322,12 +339,18 @@ ruff check src/
 - [x] Implement Milestone 5.5: Training Loop
 - [x] Implement Milestone 5.6: Worker Seeding
 - [x] Add training tests
+- [x] Implement Milestone 6.1: Stitching Window
+- [x] Implement Milestone 6.2: Patch Stitching
+- [x] Implement Milestone 6.3: Proposal-Driven Inference
+- [x] Implement Milestone 6.4: Dense Tiling Inference
+- [x] Implement Milestone 6.5: Inference Tests
 - [x] Update `workplan.md` to mark tasks complete
-- [ ] Implement Milestone 6.1: Stitching Window
-- [ ] Implement Milestone 6.2: Patch Stitching
-- [ ] Implement Milestone 6.3: Proposal-Driven Inference
-- [ ] Implement Milestone 6.4: Dense Tiling Inference
-- [ ] Implement Milestone 6.5: Inference Tests
+
+### Next Tasks (Milestone 7)
+- [ ] Implement Milestone 7.1: DDP Alignment Test
+- [ ] Implement Milestone 7.2: Augmentation Correctness Test (checkerboard)
+- [ ] Implement Milestone 7.3: End-to-End Integration Test
+- [ ] Implement Milestone 7.4: Memory Estimation Utility
 
 ---
 
