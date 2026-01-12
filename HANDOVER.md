@@ -1,8 +1,8 @@
 # Handover Protocol - Swin3D-DNP Development
 
-**Date:** 2026-01-11
-**Branch:** `claude/implement-swin3d-dnp-GFsJW`
-**Last Commit:** Milestone 4 - Loss Functions
+**Date:** 2026-01-12
+**Branch:** `claude/implement-swin3d-dnp-HaFsX`
+**Last Commit:** Milestone 5 - Training Pipeline
 
 ---
 
@@ -48,7 +48,7 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 | 3.4 Main Model | `models/swin3d_dnp.py` | ✅ Done |
 | 3.5 Model Tests | `tests/test_models.py` | ✅ Done |
 
-#### Milestone 4: Loss Functions ✅ (NEW)
+#### Milestone 4: Loss Functions ✅
 | Task | File | Status |
 |------|------|--------|
 | 4.1 Masked Cross-Entropy | `losses/ce.py` | ✅ Done |
@@ -56,70 +56,90 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 | 4.3 Focal Heatmap Loss | `losses/focal.py` | ✅ Done |
 | 4.4 Loss Tests | `tests/test_losses.py` | ✅ Done |
 
+#### Milestone 5: Training Pipeline ✅ (NEW)
+| Task | File | Status |
+|------|------|--------|
+| 5.1 Dataset Implementation | `data/dataset.py` | ✅ Done |
+| 5.2 Patch Sampling Strategies | `data/sampling.py` | ✅ Done |
+| 5.3 Augmentation | `data/transforms.py` | ~In Progress |
+| 5.4 Phase Scheduler | `training/scheduler.py` | ✅ Done |
+| 5.5 Training Loop | `training/trainer.py` | ✅ Done |
+| 5.6 Worker Seeding | `training/utils.py` | ✅ Done |
+
 ### Remaining Milestones
-- **Milestone 5:** Training Pipeline (NEXT)
-- **Milestone 6:** Inference Pipeline (Stitching)
+- **Milestone 6:** Inference Pipeline (NEXT)
 - **Milestone 7:** Integration Tests
 
 ---
 
-## 3. Milestone 4 Implementation Summary
+## 3. Milestone 5 Implementation Summary
 
-### 4.1 Masked Cross-Entropy (`losses/ce.py`)
-- `masked_cross_entropy()` - CE loss with valid_mask exclusion
-- `masked_cross_entropy_per_class()` - Per-class breakdown for analysis
-- Handles all-invalid masks gracefully (returns ~0)
-- Supports class weights and label smoothing
+### 5.1 Dataset Implementation (`data/dataset.py`)
+- `Swin3DDNPDataset` - Base dataset loading full volumes and deriving coarse views
+- `TrainingPatchDataset` - Patch sampling wrapper with configurable strategies
+- `create_case_list_from_directory()` - Convenience function for directory-based data
+- Supports NIfTI and numpy formats
+- Automatic coarse affine/spacing computation
 
-### 4.2 Masked Dice Loss (`losses/dice.py`)
-- `masked_dice_loss()` - Standard Dice with valid_mask
-- `masked_dice_loss_per_class()` - Per-class Dice for analysis
-- `masked_generalized_dice_loss()` - GDL for class imbalance
-- `dice_score()` - Dice coefficient for evaluation
-- Division-safe with EPS_DICE smooth factor
-- Supports one-hot or class index targets
+### 5.2 Patch Sampling Strategies (`data/sampling.py`)
+- `PatchSampler` class - Unified sampler with configurable ratios
+- `sample_uniform_center()` - Random valid positions
+- `sample_positive_center()` - GT foreground positions
+- `sample_boundary_band_center()` - Organ boundary positions
+- `sample_hard_negative_centers()` - False positive proposals via NMS
+- `sample_mixed_centers()` - Convenience function for batch sampling
 
-### 4.3 Focal Heatmap Loss (`losses/focal.py`)
-- `focal_heatmap_loss()` - CornerNet-style for keypoint heatmaps
-- `focal_heatmap_loss_from_logits()` - Accepts raw logits
-- `focal_cross_entropy_loss()` - Lin et al. style for classification
-- `quality_focal_loss()` - For joint classification + quality
-- `offset_loss()` - Sub-voxel offset regression
-- Configurable alpha/beta/gamma focusing parameters
+### 5.3 Augmentation (Partial)
+- Augmentation supported via `sample_patch_from_full()` in `geometry/sampling.py`
+- Parameters: R_world (rotation), S_world (scale), t_world_mm (translation)
+- **Pending:** Checkerboard rotation test for correctness verification
 
-### 4.4 Loss Tests (`tests/test_losses.py`)
+### 5.4 Phase Scheduler (`training/scheduler.py`)
+- `PhaseScheduler` class with:
+  - Phase 1 (0-10%): Coarse warmup, detach context, no hard negatives
+  - Phase 2 (10-60%): Transition, enable gradients, enable hard negatives
+  - Phase 3 (60-100%): End-to-end fine-tuning, lower LR
+- Loss weighting via lambda0/lambda1 per phase
+- Hard negative mining warmup
+- State dict support for checkpointing
+- `LRSchedulerWrapper` for phase-aware LR scaling
+- `create_cosine_schedule_with_warmup()` convenience function
+
+### 5.5 Training Loop (`training/trainer.py`)
+- `Trainer` class with:
+  - Mixed precision support (bf16/fp16)
+  - Gradient accumulation
+  - Automatic checkpointing
+  - Logging and metrics tracking
+  - Validation loop
+- `TrainerConfig` dataclass for configuration
+- `TrainerState` dataclass for mutable state
+- `create_trainer()` convenience function
+
+### 5.6 Worker Seeding (`training/utils.py`)
+- `seed_everything()` - Seeds Python, NumPy, PyTorch, CuDNN
+- `get_worker_init_fn()` - Creates worker initialization function
+- `estimate_memory_gb()` - Memory requirement estimation
+- `get_memory_mitigation_tips()` - Memory optimization suggestions
+- `get_grad_scaler()` - Creates configured GradScaler
+- `clip_grad_norm_()` - Safe gradient clipping
+- `move_batch_to_device()` - Batch device transfer
+
+### Tests (`tests/test_training.py`)
 - 25+ test cases covering:
-  - Valid mask exclusion behavior
-  - Perfect/worst prediction loss values
-  - Gradient flow and backpropagation
-  - Numerical stability edge cases
-  - Focal focusing behavior verification
+  - PhaseScheduler phase transitions
+  - Lambda value scheduling
+  - Context detachment behavior
+  - Hard negative warmup
+  - Seeding reproducibility
+  - Memory estimation
+  - PatchSampler all strategies
+  - Batch sampling
+  - Fallback behavior
 
 ---
 
-## 4. Bug Fixes
-
-### Fixed: test_full_to_coarse_at_center
-- **Issue:** Test used same affine for full and coarse volumes
-- **Root cause:** With identical affines, index 63.5 maps to itself, giving normalized 1.0 not 0.0
-- **Fix:** Test now uses proper 2x spacing coarse affine to maintain same physical FOV
-- **Location:** `tests/test_geometry.py:92-128`
-
----
-
-## 5. Testing
-
-See CLAUDE.md "Testing Protocol" for full workflow.
-
-- **Test sources:** `tests/`
-- **Test results:** `test_results/`
-- **Colab notebook:** `notebooks/run_tests.ipynb`
-
-Testing is performed by external partner after each work step.
-
----
-
-## 6. File Structure Reference
+## 4. File Structure Reference
 
 ```
 src/swin3d_dnp/
@@ -131,8 +151,9 @@ src/swin3d_dnp/
 │   ├── mapping.py        # ✅ Complete
 │   └── sampling.py       # ✅ Complete
 ├── data/
-│   ├── __init__.py       # ✅ Complete
-│   ├── sampling.py       # ✅ Complete
+│   ├── __init__.py       # ✅ Complete (updated)
+│   ├── dataset.py        # ✅ Complete (NEW)
+│   ├── sampling.py       # ✅ Complete (extended)
 │   └── transforms.py     # ✅ Complete
 ├── inference/
 │   ├── __init__.py       # ✅ Complete
@@ -140,10 +161,10 @@ src/swin3d_dnp/
 │   ├── stitching.py      # ⬜ Milestone 6
 │   └── predictor.py      # ⬜ Milestone 6
 ├── losses/
-│   ├── __init__.py       # ✅ Complete (NEW)
-│   ├── ce.py             # ✅ Complete (NEW)
-│   ├── dice.py           # ✅ Complete (NEW)
-│   └── focal.py          # ✅ Complete (NEW)
+│   ├── __init__.py       # ✅ Complete
+│   ├── ce.py             # ✅ Complete
+│   ├── dice.py           # ✅ Complete
+│   └── focal.py          # ✅ Complete
 ├── models/
 │   ├── __init__.py       # ✅ Complete
 │   ├── coarse_net.py     # ✅ Complete
@@ -151,68 +172,70 @@ src/swin3d_dnp/
 │   ├── fusion.py         # ✅ Complete
 │   └── swin3d_dnp.py     # ✅ Complete
 └── training/
-    ├── __init__.py       # ⬜ Milestone 5
-    ├── trainer.py        # ⬜ Milestone 5
-    └── scheduler.py      # ⬜ Milestone 5
+    ├── __init__.py       # ✅ Complete (NEW)
+    ├── trainer.py        # ✅ Complete (NEW)
+    ├── scheduler.py      # ✅ Complete (NEW)
+    └── utils.py          # ✅ Complete (NEW)
 
 notebooks/
-└── run_tests.ipynb       # ✅ Complete (NEW) - Colab test runner
+└── run_tests.ipynb       # ✅ Complete
 
 tests/
 ├── conftest.py           # ✅ Fixtures
-├── test_geometry.py      # ✅ Complete (fixed)
+├── test_geometry.py      # ✅ Complete
 ├── test_models.py        # ✅ Complete
 ├── test_inference.py     # ✅ Complete
-└── test_losses.py        # ✅ Complete (NEW)
+├── test_losses.py        # ✅ Complete
+└── test_training.py      # ✅ Complete (NEW)
 ```
 
 ---
 
-## 7. Next Milestone: Training Pipeline
+## 5. Next Milestone: Inference Pipeline
 
-### Milestone 5 Tasks (from workplan.md)
+### Milestone 6 Tasks (from workplan.md)
 
-#### 5.1 Dataset Implementation
-- **File:** `src/swin3d_dnp/data/dataset.py`
-- Define data contracts (image_full, label_full, affine, spacing)
-- Implement case loading and preprocessing
-- Support NIfTI and numpy formats
+#### 6.1 Stitching Window
+- **File:** `src/swin3d_dnp/inference/stitching.py`
+- Implement `cos2_window_1d()` and `cos2_window_3d()`
+- Non-zero edges for numerical stability
 
-#### 5.2 Patch Sampling Strategies
-- **File:** `src/swin3d_dnp/data/sampling.py` (extend)
-- Uniform sampling (30%)
-- Positive sampling from GT (30%)
-- Boundary band sampling (20%)
-- Hard negative mining (20%)
+#### 6.2 Patch Stitching
+- **File:** `src/swin3d_dnp/inference/stitching.py`
+- Implement `stitch_patches_to_volume()`
+- Weighted overlap-add
+- Boundary handling
 
-#### 5.3 Phase Scheduler
-- **File:** `src/swin3d_dnp/training/scheduler.py`
-- Phase 1 (0-10%): Coarse warmup, detach context
-- Phase 2 (10-60%): Transition, enable hard negative mining
-- Phase 3 (60-100%): End-to-end fine-tuning
-- Lambda scheduling for loss weighting
+#### 6.3 Proposal-Driven Inference
+- **File:** `src/swin3d_dnp/inference/predictor.py`
+- Lesion/landmark mode with NMS proposals
+- Map proposals through affines
 
-#### 5.4 Training Loop
-- **File:** `src/swin3d_dnp/training/trainer.py`
-- Mixed precision (bf16/fp16)
-- Gradient accumulation
-- Checkpointing
-- Logging and metrics
+#### 6.4 Dense Tiling Inference
+- **File:** `src/swin3d_dnp/inference/predictor.py`
+- Organ mode with overlapping tiles
+- Configurable stride (50%/25% overlap)
 
-#### 5.5 Worker Seeding
-- **File:** `src/swin3d_dnp/training/utils.py`
-- `seed_everything()` for reproducibility
-- `get_worker_init_fn()` for dataloader
-- DDP-safe seeding
+#### 6.5 Inference Tests
+- Test stitching uniformity
+- Test proposal mapping round-trip
 
 ---
 
-## 8. Usage Example
+## 6. Usage Example
 
 ```python
 from swin3d_dnp.models import build_simple_swin3d_dnp
 from swin3d_dnp.losses import masked_cross_entropy, masked_dice_loss
+from swin3d_dnp.training import (
+    Trainer, TrainerConfig, PhaseScheduler,
+    seed_everything, create_trainer
+)
+from swin3d_dnp.data import Swin3DDNPDataset, PatchSampler
 import torch
+
+# Set seed for reproducibility
+seed_everything(42)
 
 # Build model
 model = build_simple_swin3d_dnp(
@@ -221,37 +244,37 @@ model = build_simple_swin3d_dnp(
     context_channels=32,
 )
 
-# Prepare inputs
-B = 2
-image_coarse = torch.randn(B, 1, 64, 64, 64)
-image_fine = torch.randn(B, 1, 32, 32, 32)
-centers_coarse_norm = torch.zeros(B, 3)
-target = torch.randint(0, 3, (B, 32, 32, 32))
-valid_mask = torch.ones(B, 1, 32, 32, 32)
+# Create phase scheduler
+scheduler = PhaseScheduler(total_steps=100000)
 
-spacing_fine = torch.tensor([1.0, 1.0, 1.0])
-spacing_coarse = torch.tensor([2.0, 2.0, 2.0])
+# Get phase info for current step
+phase_info = scheduler.step(current_step=5000)
+print(f"Phase: {phase_info['phase']}")
+print(f"Lambda0: {phase_info['lambda0']}, Lambda1: {phase_info['lambda1']}")
+print(f"Detach context: {phase_info['detach_context']}")
 
-# Forward pass
-model.set_phase(2)
-coarse_logits, fine_logits = model(
-    image_coarse,
-    image_fine,
-    centers_coarse_norm,
-    fine_shape=(32, 32, 32),
-    spacing_fine_dhw_mm=spacing_fine,
-    spacing_coarse_dhw_mm=spacing_coarse,
+# Apply to model
+scheduler.apply_to_model(model, current_step=5000)
+
+# Create patch sampler
+sampler = PatchSampler(
+    patch_size=(96, 96, 96),
+    ratio_uniform=0.3,
+    ratio_positive=0.3,
+    ratio_boundary=0.2,
 )
 
-# Compute losses
-ce_loss = masked_cross_entropy(fine_logits, target, valid_mask)
-dice_loss = masked_dice_loss(fine_logits, target.unsqueeze(1), valid_mask)
-total_loss = ce_loss + dice_loss
+# Sample centers from label
+label = torch.zeros((128, 128, 128), dtype=torch.long)
+label[40:80, 40:80, 40:80] = 1  # Add organ
+centers, modes = sampler.sample_batch(label, n_samples=4)
+print(f"Sampled centers: {centers.shape}")  # (4, 3)
+print(f"Sampling modes: {modes}")
 ```
 
 ---
 
-## 9. Commands Reference
+## 7. Commands Reference
 
 ```bash
 # Install package
@@ -264,7 +287,7 @@ pip install torch monai einops pytest pytest-cov
 python -m pytest tests/ -v
 
 # Run specific test file
-python -m pytest tests/test_losses.py -v
+python -m pytest tests/test_training.py -v
 
 # Type checking
 mypy src/swin3d_dnp/
@@ -275,34 +298,36 @@ ruff check src/
 
 ---
 
-## 10. Git Workflow
+## 8. Git Workflow
 
-- **Current Branch:** `claude/implement-swin3d-dnp-GFsJW`
+- **Current Branch:** `claude/implement-swin3d-dnp-HaFsX`
 - **Remote:** `origin`
 - After changes:
   ```bash
   git add <files>
   git commit -m "Descriptive message"
-  git push -u origin claude/implement-swin3d-dnp-GFsJW
+  git push -u origin claude/implement-swin3d-dnp-HaFsX
   ```
 
 ---
 
-## 11. Summary Checklist for Next Developer
+## 9. Summary Checklist for Next Developer
 
 - [x] Review `CLAUDE.md` for invariants (especially align_corners=False)
 - [x] Review `projectplan.md` for specifications
-- [x] Fixed pre-existing test failure in `test_full_to_coarse_at_center`
-- [x] Implement Milestone 4.1: Masked Cross-Entropy
-- [x] Implement Milestone 4.2: Masked Dice Loss
-- [x] Implement Milestone 4.3: Focal Heatmap Loss
-- [x] Implement Milestone 4.4: Loss Tests
+- [x] Implement Milestone 5.1: Dataset Implementation
+- [x] Implement Milestone 5.2: Patch Sampling Strategies
+- [~] Implement Milestone 5.3: Augmentation (checkerboard test pending)
+- [x] Implement Milestone 5.4: Phase Scheduler
+- [x] Implement Milestone 5.5: Training Loop
+- [x] Implement Milestone 5.6: Worker Seeding
+- [x] Add training tests
 - [x] Update `workplan.md` to mark tasks complete
-- [ ] Implement Milestone 5.1: Dataset Implementation
-- [ ] Implement Milestone 5.2: Patch Sampling Strategies
-- [ ] Implement Milestone 5.3: Phase Scheduler
-- [ ] Implement Milestone 5.4: Training Loop
-- [ ] Implement Milestone 5.5: Worker Seeding
+- [ ] Implement Milestone 6.1: Stitching Window
+- [ ] Implement Milestone 6.2: Patch Stitching
+- [ ] Implement Milestone 6.3: Proposal-Driven Inference
+- [ ] Implement Milestone 6.4: Dense Tiling Inference
+- [ ] Implement Milestone 6.5: Inference Tests
 
 ---
 

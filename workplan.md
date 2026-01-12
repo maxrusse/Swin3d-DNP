@@ -155,39 +155,39 @@ Training loop with phase scheduling.
 
 ### Tasks
 
-- [ ] **5.1 Dataset Implementation**
+- [x] **5.1 Dataset Implementation**
   - Define data contracts (image_full, label_full, affine, etc.)
   - Implement case loading and preprocessing
   - File: `src/swin3d_dnp/data/dataset.py`
 
-- [ ] **5.2 Patch Sampling Strategies**
+- [x] **5.2 Patch Sampling Strategies**
   - Uniform sampling (30%)
   - Positive sampling from GT (30%)
   - Boundary band sampling (20%)
   - Hard negative mining (20%)
   - File: `src/swin3d_dnp/data/sampling.py`
 
-- [ ] **5.3 Augmentation**
-  - Random rotation in world space
-  - Random scaling
-  - Random translation
-  - Checkerboard rotation test for correctness
+- [~] **5.3 Augmentation**
+  - Random rotation in world space (supported via sample_patch_from_full)
+  - Random scaling (supported via sample_patch_from_full)
+  - Random translation (supported via sample_patch_from_full)
+  - Checkerboard rotation test for correctness (pending)
   - File: `src/swin3d_dnp/data/transforms.py`
 
-- [ ] **5.4 Phase Scheduler**
+- [x] **5.4 Phase Scheduler**
   - Implement phase transitions (warmup/transition/final)
   - Lambda scheduling for loss weighting
   - Hard negative warmup
   - File: `src/swin3d_dnp/training/scheduler.py`
 
-- [ ] **5.5 Training Loop**
+- [x] **5.5 Training Loop**
   - Mixed precision support (bf16/fp16)
   - Gradient accumulation
   - Checkpointing
   - Logging and metrics
   - File: `src/swin3d_dnp/training/trainer.py`
 
-- [ ] **5.6 Worker Seeding**
+- [x] **5.6 Worker Seeding**
   - Implement `seed_everything()`
   - Implement `get_worker_init_fn()`
   - Ensure reproducibility
@@ -279,8 +279,8 @@ End-to-end testing and robustness.
 2. ~~Complete Milestone 2 (Proposal Engine)~~ ✅ Done
 3. ~~Complete Milestone 3 (Networks & Fusion)~~ ✅ Done
 4. ~~Complete Milestone 4 (Loss Functions)~~ ✅ Done
-5. **Next: Milestone 5 (Training Pipeline)** - Phase scheduler, patch sampling
-6. Milestone 6 (Inference Pipeline) - Stitching, dense tiling
+5. ~~Complete Milestone 5 (Training Pipeline)~~ ✅ Done (5.3 augmentation test pending)
+6. **Next: Milestone 6 (Inference Pipeline)** - Stitching, dense tiling
 7. Milestone 7 (Validation & Integration) - Final testing
 
 ## Testing
