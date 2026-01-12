@@ -285,6 +285,13 @@ End-to-end testing and robustness.
 
 **All milestones complete!** The Swin3D-DNP implementation is ready for external testing.
 
+---
+
+## Maintenance: Code Simplification
+
+- [x] Create `code_simplification_worklist.md` and begin tracking simplification progress.
+- [x] Simplify `generate_tile_positions` range construction without changing behavior.
+
 ## Testing
 
 See CLAUDE.md "Testing Protocol" for details.

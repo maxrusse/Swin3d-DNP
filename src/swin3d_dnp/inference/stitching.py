@@ -158,11 +158,14 @@ def generate_tile_positions(
         )
 
     sd, sh, sw = stride
+    z_positions = list(range(0, max(D - Df + 1, 1), sd))
+    y_positions = list(range(0, max(H - Hf + 1, 1), sh))
+    x_positions = list(range(0, max(W - Wf + 1, 1), sw))
 
     positions = []
-    for sz in range(0, max(D - Df + 1, 1), sd):
-        for sy in range(0, max(H - Hf + 1, 1), sh):
-            for sx in range(0, max(W - Wf + 1, 1), sw):
+    for sz in z_positions:
+        for sy in y_positions:
+            for sx in x_positions:
                 positions.append((sz, sy, sx))
 
     # Ensure we cover the edges by adding boundary patches if needed
@@ -175,33 +178,33 @@ def generate_tile_positions(
     if last_z > 0:
         existing_z = {p[0] for p in positions}
         if last_z not in existing_z:
-            for sy in range(0, max(H - Hf + 1, 1), sh):
-                for sx in range(0, max(W - Wf + 1, 1), sw):
+            for sy in y_positions:
+                for sx in x_positions:
                     positions.append((last_z, sy, sx))
 
     if last_y > 0:
         existing_y = {p[1] for p in positions}
         if last_y not in existing_y:
-            for sz in range(0, max(D - Df + 1, 1), sd):
-                for sx in range(0, max(W - Wf + 1, 1), sw):
+            for sz in z_positions:
+                for sx in x_positions:
                     positions.append((sz, last_y, sx))
 
     if last_x > 0:
         existing_x = {p[2] for p in positions}
         if last_x not in existing_x:
-            for sz in range(0, max(D - Df + 1, 1), sd):
-                for sy in range(0, max(H - Hf + 1, 1), sh):
+            for sz in z_positions:
+                for sy in y_positions:
                     positions.append((sz, sy, last_x))
 
     # Add corner patches
     if last_z > 0 and last_y > 0:
-        for sx in range(0, max(W - Wf + 1, 1), sw):
+        for sx in x_positions:
             positions.append((last_z, last_y, sx))
     if last_z > 0 and last_x > 0:
-        for sy in range(0, max(H - Hf + 1, 1), sh):
+        for sy in y_positions:
             positions.append((last_z, sy, last_x))
     if last_y > 0 and last_x > 0:
-        for sz in range(0, max(D - Df + 1, 1), sd):
+        for sz in z_positions:
             positions.append((sz, last_y, last_x))
 
     # Add final corner
