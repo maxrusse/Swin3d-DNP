@@ -201,28 +201,28 @@ Full volume inference with stitching.
 
 ### Tasks
 
-- [ ] **6.1 Stitching Window**
+- [x] **6.1 Stitching Window**
   - Implement `cos2_window_1d()` and `cos2_window_3d()`
   - Non-zero edges for numerical stability
   - File: `src/swin3d_dnp/inference/stitching.py`
 
-- [ ] **6.2 Patch Stitching**
+- [x] **6.2 Patch Stitching**
   - Implement `stitch_patches_to_volume()`
   - Weighted overlap-add
   - Boundary handling
   - File: `src/swin3d_dnp/inference/stitching.py`
 
-- [ ] **6.3 Proposal-Driven Inference**
+- [x] **6.3 Proposal-Driven Inference**
   - Lesion/landmark mode with NMS proposals
   - Map proposals through affines
   - File: `src/swin3d_dnp/inference/predictor.py`
 
-- [ ] **6.4 Dense Tiling Inference**
+- [x] **6.4 Dense Tiling Inference**
   - Organ mode with overlapping tiles
   - Configurable stride (50%/25% overlap)
   - File: `src/swin3d_dnp/inference/predictor.py`
 
-- [ ] **6.5 Inference Tests**
+- [x] **6.5 Inference Tests**
   - Test stitching uniformity (constant patches -> constant output)
   - Test proposal mapping round-trip
   - File: `tests/test_inference.py`
@@ -280,8 +280,8 @@ End-to-end testing and robustness.
 3. ~~Complete Milestone 3 (Networks & Fusion)~~ ✅ Done
 4. ~~Complete Milestone 4 (Loss Functions)~~ ✅ Done
 5. ~~Complete Milestone 5 (Training Pipeline)~~ ✅ Done (5.3 augmentation test pending)
-6. **Next: Milestone 6 (Inference Pipeline)** - Stitching, dense tiling
-7. Milestone 7 (Validation & Integration) - Final testing
+6. ~~Complete Milestone 6 (Inference Pipeline)~~ ✅ Done
+7. **Next: Milestone 7 (Validation & Integration)** - Final testing
 
 ## Testing
 
