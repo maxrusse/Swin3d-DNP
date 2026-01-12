@@ -1,0 +1,251 @@
+Swin3D-DNP Test Results
+=======================
+Timestamp: 20260112_192437
+Branch: main
+PyTorch: 2.9.0+cu126
+GPU: Tesla T4
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-8.4.2, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /content/Swin3d-DNP
+configfile: pyproject.toml
+plugins: cov-7.0.0, langsmith-0.6.1, typeguard-4.4.4, anyio-4.12.1
+collecting ... collected 179 items
+
+tests/test_distributed.py::TestDDPAlignment::test_batch_alignment_simulation PASSED [  0%]
+tests/test_distributed.py::TestDDPAlignment::test_batch_alignment_with_shuffle PASSED [  1%]
+tests/test_distributed.py::TestDDPAlignment::test_batch_creation_from_dict PASSED [  1%]
+tests/test_distributed.py::TestDistributedSamplerAlignment::test_index_alignment_across_ranks PASSED [  2%]
+tests/test_distributed.py::TestDistributedSamplerAlignment::test_deterministic_sampling_across_ranks PASSED [  2%]
+tests/test_distributed.py::TestAllGatherAlignment::test_gradient_all_gather_simulation PASSED [  3%]
+tests/test_distributed.py::TestAllGatherAlignment::test_output_alignment_after_gather PASSED [  3%]
+tests/test_distributed.py::TestBatchMetadataAlignment::test_affine_alignment PASSED [  4%]
+tests/test_distributed.py::TestBatchMetadataAlignment::test_spacing_alignment PASSED [  5%]
+tests/test_distributed.py::TestCollateFunction::test_collate_preserves_alignment PASSED [  5%]
+tests/test_distributed.py::TestRealDistributed::test_actual_ddp_alignment SKIPPED [  6%]
+tests/test_geometry.py::TestCoordinates::test_index_to_norm_identity PASSED [  6%]
+tests/test_geometry.py::TestCoordinates::test_norm_to_index_identity PASSED [  7%]
+tests/test_geometry.py::TestCoordinates::test_boundary_values PASSED     [  7%]
+tests/test_geometry.py::TestCoordinates::test_patch_center_index PASSED  [  8%]
+tests/test_geometry.py::TestCoordinates::test_patch_center_norm PASSED   [  8%]
+tests/test_geometry.py::TestMapping::test_full_to_coarse_at_center PASSED [  9%]
+tests/test_geometry.py::TestMapping::test_round_trip_mapping PASSED      [ 10%]
+tests/test_geometry.py::TestSampling::test_extent_calculation PASSED     [ 10%]
+tests/test_geometry.py::TestSampling::test_extent_anisotropic PASSED     [ 11%]
+tests/test_geometry.py::TestSampling::test_sample_patch_center_aligned PASSED [ 11%]
+tests/test_geometry.py::TestSampling::test_valid_mask_full_inbounds PASSED [ 12%]
+tests/test_geometry.py::TestSampling::test_valid_mask_partial_oob PASSED [ 12%]
+tests/test_geometry.py::TestContextSampler::test_context_sampler_shape PASSED [ 13%]
+tests/test_geometry.py::TestContextSampler::test_context_sampler_center_alignment PASSED [ 13%]
+tests/test_geometry.py::TestContextSampler::test_context_sampler_gradient_flow PASSED [ 14%]
+tests/test_geometry.py::TestContextSampler::test_ramp_volume_alignment PASSED [ 15%]
+tests/test_geometry.py::TestRoundTripSampling::test_identity_sampling PASSED [ 15%]
+tests/test_inference.py::TestNMS::test_nms_single_peak PASSED            [ 16%]
+tests/test_inference.py::TestNMS::test_nms_multiple_separated_peaks PASSED [ 16%]
+tests/test_inference.py::TestNMS::test_nms_suppression PASSED            [ 17%]
+tests/test_inference.py::TestNMS::test_nms_topk_limit PASSED             [ 17%]
+tests/test_inference.py::TestNMS::test_nms_threshold PASSED              [ 18%]
+tests/test_inference.py::TestNMS::test_nms_anisotropic_spacing PASSED    [ 18%]
+tests/test_inference.py::TestNMS::test_nms_empty_result PASSED           [ 19%]
+tests/test_inference.py::TestNMS::test_nms_isotropic_wrapper PASSED      [ 20%]
+tests/test_inference.py::TestBoundaryBandSampling::test_boundary_band_finds_edges PASSED [ 20%]
+tests/test_inference.py::TestBoundaryBandSampling::test_boundary_band_respects_patch_size PASSED [ 21%]
+tests/test_inference.py::TestBoundaryBandSampling::test_boundary_band_no_organ PASSED [ 21%]
+tests/test_inference.py::TestPositiveSampling::test_sample_positive_center PASSED [ 22%]
+tests/test_inference.py::TestPositiveSampling::test_sample_positive_center_any_class PASSED [ 22%]
+tests/test_inference.py::TestUniformSampling::test_sample_uniform_center PASSED [ 23%]
+tests/test_inference.py::TestLabelDownsampling::test_downsample_multiclass PASSED [ 24%]
+tests/test_inference.py::TestLabelDownsampling::test_downsample_binary_preserves_small PASSED [ 24%]
+tests/test_inference.py::TestLabelDownsampling::test_downsample_image PASSED [ 25%]
+tests/test_inference.py::TestLabelDownsampling::test_downsample_image_with_channels PASSED [ 25%]
+tests/test_inference.py::TestAugmentationHelpers::test_random_rotation_matrix_orthogonal PASSED [ 26%]
+tests/test_inference.py::TestAugmentationHelpers::test_random_rotation_matrix_range PASSED [ 26%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_1d_shape PASSED [ 27%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_1d_range PASSED [ 27%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_1d_symmetric PASSED [ 28%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_1d_edges_nonzero PASSED [ 29%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_1d_max_at_center PASSED [ 29%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_3d_shape PASSED [ 30%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_3d_separable PASSED [ 30%]
+tests/test_inference.py::TestStitchingWindow::test_cos2_window_3d_device PASSED [ 31%]
+tests/test_inference.py::TestStitching::test_stitch_single_patch PASSED  [ 31%]
+tests/test_inference.py::TestStitching::test_stitch_uniform_constant PASSED [ 32%]
+tests/test_inference.py::TestStitching::test_stitch_overlapping_patches PASSED [ 32%]
+tests/test_inference.py::TestStitching::test_stitch_boundary_handling PASSED [ 33%]
+tests/test_inference.py::TestTilePositions::test_tile_positions_coverage PASSED [ 34%]
+tests/test_inference.py::TestTilePositions::test_tile_positions_overlap PASSED [ 34%]
+tests/test_inference.py::TestTilePositions::test_tile_positions_small_volume PASSED [ 35%]
+tests/test_inference.py::TestTilePositions::test_tile_positions_explicit_stride PASSED [ 35%]
+tests/test_inference.py::TestProposalMapping::test_full_to_coarse_norm_identity PASSED [ 36%]
+tests/test_inference.py::TestProposalMapping::test_coarse_to_full_round_trip PASSED [ 36%]
+tests/test_inference.py::TestProposalMapping::test_mapping_with_translation PASSED [ 37%]
+tests/test_inference.py::TestProposalMapping::test_mapping_anisotropic_spacing PASSED [ 37%]
+tests/test_integration.py::TestFullTrainingStep::test_forward_backward_completes PASSED [ 38%]
+tests/test_integration.py::TestFullTrainingStep::test_loss_decreases_over_steps PASSED [ 39%]
+tests/test_integration.py::TestFullTrainingStep::test_phase_scheduler_integration PASSED [ 39%]
+tests/test_integration.py::TestInferencePipeline::test_inference_produces_valid_output PASSED [ 40%]
+tests/test_integration.py::TestInferencePipeline::test_proposal_mode_inference PASSED [ 40%]
+tests/test_integration.py::TestCheckpointRoundTrip::test_checkpoint_save_load PASSED [ 41%]
+tests/test_integration.py::TestCheckpointRoundTrip::test_phase_scheduler_state_dict PASSED [ 41%]
+tests/test_integration.py::TestDataFlowIntegrity::test_patch_label_alignment PASSED [ 42%]
+tests/test_integration.py::TestDataFlowIntegrity::test_stitching_preserves_values PASSED [ 43%]
+tests/test_integration.py::TestMemoryEstimation::test_memory_estimate_reasonable PASSED [ 43%]
+tests/test_integration.py::TestMemoryEstimation::test_memory_tips_generation PASSED [ 44%]
+tests/test_integration.py::TestModelModes::test_coarse_only_mode PASSED  [ 44%]
+tests/test_integration.py::TestModelModes::test_fine_with_context_mode PASSED [ 45%]
+tests/test_integration.py::TestGradientFlowIntegration::test_end_to_end_gradient_flow PASSED [ 45%]
+tests/test_integration.py::TestGradientFlowIntegration::test_detached_gradient_flow PASSED [ 46%]
+tests/test_integration.py::TestReproducibility::test_deterministic_forward PASSED [ 46%]
+tests/test_losses.py::TestMaskedCrossEntropy::test_valid_mask_ignores_padded_regions PASSED [ 47%]
+tests/test_losses.py::TestMaskedCrossEntropy::test_all_invalid_returns_zero PASSED [ 48%]
+tests/test_losses.py::TestMaskedCrossEntropy::test_full_valid_mask_matches_standard_ce PASSED [ 48%]
+tests/test_losses.py::TestMaskedCrossEntropy::test_gradient_flow PASSED  [ 49%]
+tests/test_losses.py::TestMaskedCrossEntropy::test_per_class_loss PASSED [ 49%]
+tests/test_losses.py::TestMaskedDiceLoss::test_perfect_prediction_gives_zero_loss PASSED [ 50%]
+tests/test_losses.py::TestMaskedDiceLoss::test_worst_case_gives_high_loss PASSED [ 50%]
+tests/test_losses.py::TestMaskedDiceLoss::test_valid_mask_excludes_invalid_regions PASSED [ 51%]
+tests/test_losses.py::TestMaskedDiceLoss::test_gradient_flow_respects_mask PASSED [ 51%]
+tests/test_losses.py::TestMaskedDiceLoss::test_numerical_stability_with_empty_class PASSED [ 52%]
+tests/test_losses.py::TestMaskedDiceLoss::test_generalized_dice_loss PASSED [ 53%]
+tests/test_losses.py::TestMaskedDiceLoss::test_dice_score PASSED         [ 53%]
+tests/test_losses.py::TestFocalHeatmapLoss::test_peak_prediction_gives_low_loss PASSED [ 54%]
+tests/test_losses.py::TestFocalHeatmapLoss::test_wrong_prediction_gives_high_loss PASSED [ 54%]
+tests/test_losses.py::TestFocalHeatmapLoss::test_focal_down_weights_easy_examples PASSED [ 55%]
+tests/test_losses.py::TestFocalHeatmapLoss::test_mask_excludes_invalid PASSED [ 55%]
+tests/test_losses.py::TestFocalHeatmapLoss::test_from_logits PASSED      [ 56%]
+tests/test_losses.py::TestFocalCrossEntropyLoss::test_reduces_easy_example_contribution PASSED [ 56%]
+tests/test_losses.py::TestFocalCrossEntropyLoss::test_gamma_zero_equals_ce PASSED [ 57%]
+tests/test_losses.py::TestOffsetLoss::test_perfect_offset_gives_zero_loss PASSED [ 58%]
+tests/test_losses.py::TestOffsetLoss::test_only_positive_locations_count PASSED [ 58%]
+tests/test_losses.py::TestOffsetLoss::test_valid_mask_respected PASSED   [ 59%]
+tests/test_losses.py::TestNumericalStability::test_ce_with_extreme_logits PASSED [ 59%]
+tests/test_losses.py::TestNumericalStability::test_dice_with_zero_volume_class PASSED [ 60%]
+tests/test_losses.py::TestNumericalStability::test_focal_with_zero_predictions PASSED [ 60%]
+tests/test_losses.py::TestNumericalStability::test_focal_with_one_predictions PASSED [ 61%]
+tests/test_losses.py::TestGradientComputation::test_dice_gradients_are_smooth PASSED [ 62%]
+tests/test_losses.py::TestGradientComputation::test_focal_gradients_respect_alpha_beta PASSED [ 62%]
+tests/test_models.py::TestCoarseContextFusion::test_basic_fusion_shapes PASSED [ 63%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_with_probs PASSED [ 63%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_without_probs_when_configured PASSED [ 64%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_norm_types[instance] PASSED [ 64%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_norm_types[batch] PASSED [ 65%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_norm_types[layer] PASSED [ 65%]
+tests/test_models.py::TestCoarseContextFusion::test_fusion_invalid_norm PASSED [ 66%]
+tests/test_models.py::TestAdaptiveFusion::test_adaptive_fusion_shapes PASSED [ 67%]
+tests/test_models.py::TestSimpleFusion::test_simple_fusion_output_channels PASSED [ 67%]
+tests/test_models.py::TestSimpleFusion::test_simple_fusion_shapes PASSED [ 68%]
+tests/test_models.py::TestSwin3DDNP::test_forward_shapes PASSED          [ 68%]
+tests/test_models.py::TestSwin3DDNP::test_phase_switching PASSED         [ 69%]
+tests/test_models.py::TestSwin3DDNP::test_invalid_phase PASSED           [ 69%]
+tests/test_models.py::TestSwin3DDNP::test_coarse_only_forward PASSED     [ 70%]
+tests/test_models.py::TestGradientFlow::test_gradient_flow_no_detach PASSED [ 70%]
+tests/test_models.py::TestGradientFlow::test_gradient_flow_with_detach PASSED [ 71%]
+tests/test_models.py::TestContextSamplerIntegration::test_context_sampler_shapes PASSED [ 72%]
+tests/test_models.py::TestContextSamplerIntegration::test_context_sampler_gradient_flow PASSED [ 72%]
+tests/test_models.py::TestContextSamplerIntegration::test_context_sampler_with_clamping PASSED [ 73%]
+tests/test_models.py::TestModelBuilders::test_build_simple_model PASSED  [ 73%]
+tests/test_models.py::TestModelBuilders::test_simple_model_forward PASSED [ 74%]
+tests/test_models.py::TestForwardFineWithContext::test_forward_fine_with_precomputed_context PASSED [ 74%]
+tests/test_training.py::TestPhaseScheduler::test_phase_transitions PASSED [ 75%]
+tests/test_training.py::TestPhaseScheduler::test_lambda_values PASSED    [ 75%]
+tests/test_training.py::TestPhaseScheduler::test_context_detachment PASSED [ 76%]
+tests/test_training.py::TestPhaseScheduler::test_hard_negative_warmup PASSED [ 77%]
+tests/test_training.py::TestPhaseScheduler::test_lr_scale_phase3 PASSED  [ 77%]
+tests/test_training.py::TestPhaseScheduler::test_step_returns_complete_info PASSED [ 78%]
+tests/test_training.py::TestPhaseScheduler::test_state_dict_roundtrip PASSED [ 78%]
+tests/test_training.py::TestSeedingUtilities::test_seed_everything_pytorch PASSED [ 79%]
+tests/test_training.py::TestSeedingUtilities::test_seed_everything_numpy PASSED [ 79%]
+tests/test_training.py::TestSeedingUtilities::test_worker_init_fn_different_seeds PASSED [ 80%]
+tests/test_training.py::TestMemoryEstimation::test_estimate_returns_all_components PASSED [ 81%]
+tests/test_training.py::TestMemoryEstimation::test_estimate_scales_with_batch_size PASSED [ 81%]
+tests/test_training.py::TestMemoryEstimation::test_mitigation_tips_when_insufficient PASSED [ 82%]
+tests/test_training.py::TestMemoryEstimation::test_mitigation_tips_when_sufficient PASSED [ 82%]
+tests/test_training.py::TestPatchSampler::test_uniform_sampling_in_valid_range PASSED [ 83%]
+tests/test_training.py::TestPatchSampler::test_positive_sampling_on_foreground PASSED [ 83%]
+tests/test_training.py::TestPatchSampler::test_positive_sampling_with_target_classes PASSED [ 84%]
+tests/test_training.py::TestPatchSampler::test_boundary_sampling_near_edges PASSED [ 84%]
+tests/test_training.py::TestPatchSampler::test_auto_mode_uses_ratios PASSED [ 85%]
+tests/test_training.py::TestPatchSampler::test_batch_sampling PASSED     [ 86%]
+tests/test_training.py::TestPatchSampler::test_fallback_to_uniform PASSED [ 86%]
+tests/test_training.py::TestSamplingFunctions::test_sample_uniform_center_shape PASSED [ 87%]
+tests/test_training.py::TestSamplingFunctions::test_sample_positive_center_returns_none_when_empty PASSED [ 87%]
+tests/test_training.py::TestSamplingFunctions::test_sample_boundary_band_center_returns_none_when_no_organ PASSED [ 88%]
+tests/test_training.py::TestSamplingFunctions::test_sample_mixed_centers_convenience PASSED [ 88%]
+tests/test_training.py::TestSchedulerWithModel::test_apply_to_model_sets_phase PASSED [ 89%]
+tests/test_training.py::TestGradScalerUtilities::test_get_grad_scaler_creates_scaler PASSED [ 89%]
+tests/test_training.py::TestGradScalerUtilities::test_clip_grad_norm_with_no_grads PASSED [ 90%]
+tests/test_training.py::TestMoveToDevice::test_move_batch_to_device PASSED [ 91%]
+tests/test_transforms.py::TestCheckerboardRotation::test_checkerboard_no_rotation PASSED [ 91%]
+tests/test_transforms.py::TestCheckerboardRotation::test_checkerboard_90deg_rotation PASSED [ 92%]
+tests/test_transforms.py::TestCheckerboardRotation::test_checkerboard_arbitrary_rotation PASSED [ 92%]
+tests/test_transforms.py::TestCheckerboardRotation::test_consistent_transformation_batch PASSED [ 93%]
+tests/test_transforms.py::TestRotationMatrixProperties::test_rotation_matrix_orthogonal PASSED [ 93%]
+tests/test_transforms.py::TestRotationMatrixProperties::test_rotation_matrix_determinant PASSED [ 94%]
+tests/test_transforms.py::TestRotationMatrixProperties::test_rotation_preserves_length PASSED [ 94%]
+tests/test_transforms.py::TestScaleTransform::test_isotropic_scale PASSED [ 95%]
+tests/test_transforms.py::TestScaleTransform::test_anisotropic_scale PASSED [ 96%]
+tests/test_transforms.py::TestTranslationTransform::test_translation_shifts_content PASSED [ 96%]
+tests/test_transforms.py::TestValidMaskCorrectness::test_valid_mask_center_patch PASSED [ 97%]
+tests/test_transforms.py::TestValidMaskCorrectness::test_valid_mask_corner_patch PASSED [ 97%]
+tests/test_transforms.py::TestValidMaskCorrectness::test_valid_mask_alignment_with_label PASSED [ 98%]
+tests/test_transforms.py::TestCombinedTransforms::test_combined_transform_alignment PASSED [ 98%]
+tests/test_transforms.py::TestDownsampleAlignment::test_downsample_preserves_structure PASSED [ 99%]
+tests/test_transforms.py::TestDownsampleAlignment::test_downsample_label_multiclass PASSED [100%]
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap_external>:1301
+  <frozen importlib._bootstrap_external>:1301: FutureWarning: The cuda.cudart module is deprecated and will be removed in a future release, please switch to use the cuda.bindings.runtime module instead.
+
+tests/test_integration.py::TestInferencePipeline::test_inference_produces_valid_output
+  /content/Swin3d-DNP/src/swin3d_dnp/inference/predictor.py:388: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+    with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+
+tests/test_integration.py::TestInferencePipeline::test_inference_produces_valid_output
+  /content/Swin3d-DNP/src/swin3d_dnp/inference/predictor.py:442: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+    with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+
+tests/test_integration.py::TestInferencePipeline::test_proposal_mode_inference
+  /content/Swin3d-DNP/src/swin3d_dnp/inference/predictor.py:236: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+    with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+
+tests/test_integration.py::TestInferencePipeline::test_proposal_mode_inference
+  /content/Swin3d-DNP/src/swin3d_dnp/inference/predictor.py:304: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+    with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.12-final-0 _______________
+
+Name                                     Stmts   Miss Branch BrPart  Cover
+--------------------------------------------------------------------------
+src/swin3d_dnp/__init__.py                   3      0      0      0   100%
+src/swin3d_dnp/constants.py                 48      0      0      0   100%
+src/swin3d_dnp/data/__init__.py              4      0      0      0   100%
+src/swin3d_dnp/data/dataset.py             151    126     38      0    13%
+src/swin3d_dnp/data/sampling.py            136      8     38      7    91%
+src/swin3d_dnp/data/transforms.py           57      3     10      3    91%
+src/swin3d_dnp/geometry/__init__.py          4      0      0      0   100%
+src/swin3d_dnp/geometry/coordinates.py      11      0      0      0   100%
+src/swin3d_dnp/geometry/mapping.py          36      4      0      0    89%
+src/swin3d_dnp/geometry/sampling.py         99      0     20      2    98%
+src/swin3d_dnp/inference/__init__.py         4      0      0      0   100%
+src/swin3d_dnp/inference/nms.py             47      4     16      4    87%
+src/swin3d_dnp/inference/predictor.py      199     80     32      2    56%
+src/swin3d_dnp/inference/stitching.py       84      0     52      0   100%
+src/swin3d_dnp/losses/__init__.py            4      0      0      0   100%
+src/swin3d_dnp/losses/ce.py                 24      0      2      0   100%
+src/swin3d_dnp/losses/dice.py               88     28     24      8    62%
+src/swin3d_dnp/losses/focal.py              45     10      2      1    77%
+src/swin3d_dnp/models/__init__.py            5      0      0      0   100%
+src/swin3d_dnp/models/coarse_net.py         58     46      0      0    21%
+src/swin3d_dnp/models/fine_net.py           32     12      0      0    62%
+src/swin3d_dnp/models/fusion.py             90     15     30      5    77%
+src/swin3d_dnp/models/swin3d_dnp.py         82     12     10      2    85%
+src/swin3d_dnp/training/__init__.py          4      0      0      0   100%
+src/swin3d_dnp/training/scheduler.py        92     24     14      2    70%
+src/swin3d_dnp/training/trainer.py         222    172     42      0    19%
+src/swin3d_dnp/training/utils.py            67      8     12      5    84%
+--------------------------------------------------------------------------
+TOTAL                                     1696    552    342     41    65%
+============ 178 passed, 1 skipped, 5 warnings in 83.00s (0:01:23) =============
