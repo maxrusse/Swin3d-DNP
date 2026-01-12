@@ -167,12 +167,12 @@ Training loop with phase scheduling.
   - Hard negative mining (20%)
   - File: `src/swin3d_dnp/data/sampling.py`
 
-- [~] **5.3 Augmentation**
+- [x] **5.3 Augmentation**
   - Random rotation in world space (supported via sample_patch_from_full)
   - Random scaling (supported via sample_patch_from_full)
   - Random translation (supported via sample_patch_from_full)
-  - Checkerboard rotation test for correctness (pending)
-  - File: `src/swin3d_dnp/data/transforms.py`
+  - Checkerboard rotation test for correctness
+  - File: `src/swin3d_dnp/data/transforms.py`, `tests/test_transforms.py`
 
 - [x] **5.4 Phase Scheduler**
   - Implement phase transitions (warmup/transition/final)
@@ -235,22 +235,22 @@ End-to-end testing and robustness.
 
 ### Tasks
 
-- [ ] **7.1 DDP Alignment Test**
+- [x] **7.1 DDP Alignment Test**
   - Verify batch scatter maintains alignment
   - Test multi-GPU consistency
   - File: `tests/test_distributed.py`
 
-- [ ] **7.2 Augmentation Correctness Test**
+- [x] **7.2 Augmentation Correctness Test**
   - Checkerboard rotation test
   - Verify image/label consistency under transforms
   - File: `tests/test_transforms.py`
 
-- [ ] **7.3 End-to-End Integration Test**
+- [x] **7.3 End-to-End Integration Test**
   - Full training step (forward + backward)
   - Full inference pipeline
   - File: `tests/test_integration.py`
 
-- [ ] **7.4 Memory Estimation Utility**
+- [x] **7.4 Memory Estimation Utility**
   - Implement `estimate_memory_gb()`
   - Document mitigation strategies
   - File: `src/swin3d_dnp/training/utils.py`
@@ -279,9 +279,11 @@ End-to-end testing and robustness.
 2. ~~Complete Milestone 2 (Proposal Engine)~~ ✅ Done
 3. ~~Complete Milestone 3 (Networks & Fusion)~~ ✅ Done
 4. ~~Complete Milestone 4 (Loss Functions)~~ ✅ Done
-5. ~~Complete Milestone 5 (Training Pipeline)~~ ✅ Done (5.3 augmentation test pending)
+5. ~~Complete Milestone 5 (Training Pipeline)~~ ✅ Done
 6. ~~Complete Milestone 6 (Inference Pipeline)~~ ✅ Done
-7. **Next: Milestone 7 (Validation & Integration)** - Final testing
+7. ~~Complete Milestone 7 (Validation & Integration)~~ ✅ Done
+
+**All milestones complete!** The Swin3D-DNP implementation is ready for external testing.
 
 ## Testing
 
