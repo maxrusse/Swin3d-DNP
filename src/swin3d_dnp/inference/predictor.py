@@ -186,6 +186,63 @@ class Predictor:
 
         return spacing_full_dhw, spacing_coarse_dhw
 
+    def _prepare_coarse_inputs(
+        self,
+        image_full: Tensor,
+        affine_full: Tensor,
+        coarse_shape: tuple[int, int, int],
+    ) -> tuple[
+        Tensor,
+        Tensor,
+        tuple[int, int, int],
+        Tensor,
+        Tensor,
+        Tensor,
+        Tensor,
+        Tensor,
+        Tensor,
+    ]:
+        """Prepare coarse inputs and run the coarse network."""
+        full_shape = image_full.shape[2:]
+
+        image_full = image_full.to(self.device)
+        affine_full = affine_full.to(self.device)
+
+        image_coarse = self._downsample_to_coarse(image_full, coarse_shape)
+        affine_coarse = self._compute_coarse_affine(affine_full, full_shape, coarse_shape)
+
+        spacing_full_dhw, spacing_coarse_dhw = self._compute_spacings(
+            affine_full, full_shape, coarse_shape
+        )
+
+        with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+            coarse_logits, coarse_feat = self.model.forward_coarse_only(image_coarse)
+
+        return (
+            image_full,
+            affine_full,
+            full_shape,
+            image_coarse,
+            affine_coarse,
+            spacing_full_dhw,
+            spacing_coarse_dhw,
+            coarse_logits,
+            coarse_feat,
+        )
+
+    def _center_to_patch_start(self, center: Tensor) -> Tensor:
+        """Convert a patch center (z, y, x) to a patch start index tensor."""
+        Df, Hf, Wf = self.config.fine_patch_shape
+        center_cpu = center.detach().cpu()
+        return torch.tensor(
+            [
+                int(center_cpu[0] - (Df - 1) / 2),
+                int(center_cpu[1] - (Hf - 1) / 2),
+                int(center_cpu[2] - (Wf - 1) / 2),
+            ],
+            device="cpu",
+        )
+
     @torch.no_grad()
     def predict_proposal(
         self,
@@ -217,24 +274,18 @@ class Predictor:
                 - "proposals_zyx": (N, 3) proposal coordinates in full volume
                 - "proposal_scores": (N,) proposal scores
         """
-        full_shape = image_full.shape[2:]  # (D, H, W)
+        (
+            image_full,
+            affine_full,
+            full_shape,
+            _image_coarse,
+            affine_coarse,
+            spacing_full_dhw,
+            spacing_coarse_dhw,
+            coarse_logits,
+            coarse_feat,
+        ) = self._prepare_coarse_inputs(image_full, affine_full, coarse_shape)
         D, H, W = full_shape
-
-        # Move inputs to device
-        image_full = image_full.to(self.device)
-        affine_full = affine_full.to(self.device)
-
-        # Compute coarse image and affine
-        image_coarse = self._downsample_to_coarse(image_full, coarse_shape)
-        affine_coarse = self._compute_coarse_affine(affine_full, full_shape, coarse_shape)
-
-        spacing_full_dhw, spacing_coarse_dhw = self._compute_spacings(
-            affine_full, full_shape, coarse_shape
-        )
-
-        # Run coarse network
-        with torch.cuda.amp.autocast(enabled=self.config.use_amp):
-            coarse_logits, coarse_feat = self.model.forward_coarse_only(image_coarse)
 
         # Get probability map for NMS
         if coarse_logits.shape[1] > 1:
@@ -283,7 +334,7 @@ class Predictor:
             B = batch_centers.shape[0]
 
             # Sample fine patches
-            image_fine, _, valid_mask = sample_patch_from_full(
+            image_fine, _, _valid_mask = sample_patch_from_full(
                 image_full.expand(B, -1, -1, -1, -1),
                 label_full=None,
                 affine_full=affine_full[None].expand(B, -1, -1),
@@ -314,17 +365,8 @@ class Predictor:
 
             # Compute patch start positions for stitching
             for j in range(B):
-                center = batch_centers[j]
-                start = torch.tensor(
-                    [
-                        int(center[0] - (Df - 1) / 2),
-                        int(center[1] - (Hf - 1) / 2),
-                        int(center[2] - (Wf - 1) / 2),
-                    ],
-                    device=self.device,
-                )
                 patch_logits_list.append(fine_logits[j].cpu())
-                patch_starts_list.append(start.cpu())
+                patch_starts_list.append(self._center_to_patch_start(batch_centers[j]))
 
         # Stitch patches
         stitched = stitch_patches_to_volume(
@@ -369,24 +411,17 @@ class Predictor:
                 - "fine_logits": (C, D, H, W) stitched fine predictions
                 - "coarse_logits": (C, Dc, Hc, Wc) coarse predictions
         """
-        full_shape = image_full.shape[2:]
-        D, H, W = full_shape
-
-        # Move inputs to device
-        image_full = image_full.to(self.device)
-        affine_full = affine_full.to(self.device)
-
-        # Compute coarse image and affine
-        image_coarse = self._downsample_to_coarse(image_full, coarse_shape)
-        affine_coarse = self._compute_coarse_affine(affine_full, full_shape, coarse_shape)
-
-        spacing_full_dhw, spacing_coarse_dhw = self._compute_spacings(
-            affine_full, full_shape, coarse_shape
-        )
-
-        # Run coarse network
-        with torch.cuda.amp.autocast(enabled=self.config.use_amp):
-            coarse_logits, coarse_feat = self.model.forward_coarse_only(image_coarse)
+        (
+            image_full,
+            affine_full,
+            full_shape,
+            _image_coarse,
+            affine_coarse,
+            spacing_full_dhw,
+            spacing_coarse_dhw,
+            coarse_logits,
+            coarse_feat,
+        ) = self._prepare_coarse_inputs(image_full, affine_full, coarse_shape)
 
         # Generate tile positions
         tile_positions = generate_tile_positions(
@@ -421,7 +456,7 @@ class Predictor:
             )
 
             # Sample fine patches
-            image_fine, _, valid_mask = sample_patch_from_full(
+            image_fine, _, _valid_mask = sample_patch_from_full(
                 image_full.expand(B, -1, -1, -1, -1),
                 label_full=None,
                 affine_full=affine_full[None].expand(B, -1, -1),
@@ -598,24 +633,18 @@ class BoundaryRefinementPredictor(Predictor):
         Returns:
             Dictionary with inference results.
         """
-        full_shape = image_full.shape[2:]
+        (
+            image_full,
+            affine_full,
+            full_shape,
+            _image_coarse,
+            affine_coarse,
+            spacing_full_dhw,
+            spacing_coarse_dhw,
+            coarse_logits,
+            coarse_feat,
+        ) = self._prepare_coarse_inputs(image_full, affine_full, coarse_shape)
         D, H, W = full_shape
-
-        # Move inputs to device
-        image_full = image_full.to(self.device)
-        affine_full = affine_full.to(self.device)
-
-        # Compute coarse image and affine
-        image_coarse = self._downsample_to_coarse(image_full, coarse_shape)
-        affine_coarse = self._compute_coarse_affine(affine_full, full_shape, coarse_shape)
-
-        spacing_full_dhw, spacing_coarse_dhw = self._compute_spacings(
-            affine_full, full_shape, coarse_shape
-        )
-
-        # Run coarse network
-        with torch.cuda.amp.autocast(enabled=self.config.use_amp):
-            coarse_logits, coarse_feat = self.model.forward_coarse_only(image_coarse)
 
         # Get coarse probabilities
         if coarse_logits.shape[1] > 1:
@@ -667,7 +696,7 @@ class BoundaryRefinementPredictor(Predictor):
             B = batch_centers.shape[0]
 
             # Sample fine patches
-            image_fine, _, valid_mask = sample_patch_from_full(
+            image_fine, _, _valid_mask = sample_patch_from_full(
                 image_full.expand(B, -1, -1, -1, -1),
                 label_full=None,
                 affine_full=affine_full[None].expand(B, -1, -1),
@@ -697,17 +726,8 @@ class BoundaryRefinementPredictor(Predictor):
                 )
 
             for j in range(B):
-                center = batch_centers[j]
-                start = torch.tensor(
-                    [
-                        int(center[0] - (Df - 1) / 2),
-                        int(center[1] - (Hf - 1) / 2),
-                        int(center[2] - (Wf - 1) / 2),
-                    ],
-                    device="cpu",
-                )
                 patch_logits_list.append(fine_logits[j].cpu())
-                patch_starts_list.append(start)
+                patch_starts_list.append(self._center_to_patch_start(batch_centers[j]))
 
         # Stitch refined patches
         stitched = stitch_patches_to_volume(

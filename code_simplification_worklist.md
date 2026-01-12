@@ -20,6 +20,7 @@
 ## Progress Tracking
 
 - [x] Simplified `generate_tile_positions` range construction to reuse computed ranges while preserving edge coverage logic.
+- [x] Simplified `Predictor` coarse-stage setup and patch-start construction with shared helpers.
 
 ## Bugs/Follow-ups Noted
 
