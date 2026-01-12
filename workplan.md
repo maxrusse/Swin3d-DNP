@@ -291,6 +291,7 @@ End-to-end testing and robustness.
 
 - [x] Create `code_simplification_worklist.md` and begin tracking simplification progress.
 - [x] Simplify `generate_tile_positions` range construction without changing behavior.
+- [x] Add dataset/trainer smoke tests and align trainer loss/mapping with core contracts.
 
 ## Testing
 
