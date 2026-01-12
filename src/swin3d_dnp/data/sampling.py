@@ -4,11 +4,19 @@ This module implements various patch center sampling strategies:
 - Boundary band sampling for organ refinement
 - Positive center sampling from ground truth
 - Hard negative sampling from false positives
+- Unified PatchSampler class combining all strategies
 """
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+
+from swin3d_dnp.constants import (
+    RATIO_BOUNDARY,
+    RATIO_HARDNEG,
+    RATIO_POSITIVE,
+    RATIO_UNIFORM,
+)
 
 
 def sample_boundary_band_center(
@@ -207,3 +215,209 @@ def sample_hard_negative_centers(
         threshold=threshold,
         topk=topk,
     )
+
+
+class PatchSampler:
+    """Unified patch center sampler with configurable strategy ratios.
+
+    Combines uniform, positive, boundary, and hard negative sampling
+    according to specified ratios. Falls back to uniform sampling
+    when other strategies fail.
+
+    Example:
+        >>> sampler = PatchSampler(patch_size=(96, 96, 96))
+        >>> center = sampler.sample(label_full, mode="auto")
+    """
+
+    def __init__(
+        self,
+        patch_size: tuple[int, int, int],
+        ratio_uniform: float = RATIO_UNIFORM,
+        ratio_positive: float = RATIO_POSITIVE,
+        ratio_boundary: float = RATIO_BOUNDARY,
+        ratio_hardneg: float = RATIO_HARDNEG,
+        target_classes: list[int] | None = None,
+        boundary_classes: list[int] | None = None,
+        band_width_vox: int = 5,
+    ):
+        """Initialize patch sampler.
+
+        Args:
+            patch_size: (Df, Hf, Wf) fine patch size.
+            ratio_uniform: Fraction of uniform samples.
+            ratio_positive: Fraction of positive samples.
+            ratio_boundary: Fraction of boundary samples.
+            ratio_hardneg: Fraction for hard negatives (handled externally).
+            target_classes: Classes for positive sampling.
+            boundary_classes: Classes for boundary sampling.
+            band_width_vox: Morphological band width for boundary.
+        """
+        self.patch_size = patch_size
+        self.ratio_uniform = ratio_uniform
+        self.ratio_positive = ratio_positive
+        self.ratio_boundary = ratio_boundary
+        self.ratio_hardneg = ratio_hardneg
+        self.target_classes = target_classes
+        self.boundary_classes = boundary_classes or [1]
+        self.band_width_vox = band_width_vox
+
+        # Normalize ratios (excluding hard neg which is handled separately)
+        total = ratio_uniform + ratio_positive + ratio_boundary
+        if total > 0:
+            self._norm_uniform = ratio_uniform / total
+            self._norm_positive = ratio_positive / total
+            self._norm_boundary = ratio_boundary / total
+        else:
+            self._norm_uniform = 1.0
+            self._norm_positive = 0.0
+            self._norm_boundary = 0.0
+
+    def _select_mode(self) -> str:
+        """Probabilistically select sampling mode based on ratios."""
+        r = torch.rand(1).item()
+
+        if r < self._norm_uniform:
+            return "uniform"
+        elif r < self._norm_uniform + self._norm_positive:
+            return "positive"
+        else:
+            return "boundary"
+
+    def sample_uniform(
+        self,
+        volume_shape: tuple[int, int, int],
+        device: torch.device | None = None,
+    ) -> Tensor:
+        """Sample uniform center."""
+        return sample_uniform_center(volume_shape, self.patch_size, device)
+
+    def sample_positive(self, label_full: Tensor) -> Tensor | None:
+        """Sample positive center."""
+        return sample_positive_center(
+            label_full,
+            target_classes=self.target_classes,
+            patch_size=self.patch_size,
+        )
+
+    def sample_boundary(self, label_full: Tensor) -> Tensor | None:
+        """Sample boundary center from any boundary class."""
+        for cls in self.boundary_classes:
+            center = sample_boundary_band_center(
+                label_full,
+                organ_class=cls,
+                band_width_vox=self.band_width_vox,
+                patch_size=self.patch_size,
+            )
+            if center is not None:
+                return center
+        return None
+
+    def sample(
+        self,
+        label_full: Tensor,
+        mode: str = "auto",
+        volume_shape: tuple[int, int, int] | None = None,
+    ) -> tuple[Tensor, str]:
+        """Sample a patch center.
+
+        Args:
+            label_full: (D, H, W) label tensor (can be None for uniform only).
+            mode: Sampling mode - "auto", "uniform", "positive", "boundary".
+            volume_shape: Required if label_full is None and mode is "uniform".
+
+        Returns:
+            Tuple of (center, actual_mode) where center is (3,) tensor
+            and actual_mode is the mode that succeeded.
+        """
+        if mode == "auto":
+            mode = self._select_mode()
+
+        device = label_full.device if label_full is not None else None
+        shape = (
+            tuple(label_full.shape)
+            if label_full is not None
+            else volume_shape
+        )
+
+        if shape is None:
+            raise ValueError("volume_shape required when label_full is None")
+
+        # Try requested mode
+        if mode == "uniform":
+            return self.sample_uniform(shape, device), "uniform"
+        elif mode == "positive" and label_full is not None:
+            center = self.sample_positive(label_full)
+            if center is not None:
+                return center, "positive"
+        elif mode == "boundary" and label_full is not None:
+            center = self.sample_boundary(label_full)
+            if center is not None:
+                return center, "boundary"
+
+        # Fallback to uniform
+        return self.sample_uniform(shape, device), "uniform"
+
+    def sample_batch(
+        self,
+        label_full: Tensor,
+        n_samples: int,
+        modes: list[str] | None = None,
+    ) -> tuple[Tensor, list[str]]:
+        """Sample multiple patch centers.
+
+        Args:
+            label_full: (D, H, W) label tensor.
+            n_samples: Number of centers to sample.
+            modes: Optional list of modes (length n_samples). If None, uses auto.
+
+        Returns:
+            Tuple of (centers, actual_modes) where centers is (N, 3) tensor.
+        """
+        if modes is None:
+            modes = ["auto"] * n_samples
+
+        centers = []
+        actual_modes = []
+
+        for mode in modes:
+            center, actual = self.sample(label_full, mode=mode)
+            centers.append(center)
+            actual_modes.append(actual)
+
+        return torch.stack(centers), actual_modes
+
+
+def sample_mixed_centers(
+    label_full: Tensor,
+    n_samples: int,
+    patch_size: tuple[int, int, int],
+    ratio_uniform: float = RATIO_UNIFORM,
+    ratio_positive: float = RATIO_POSITIVE,
+    ratio_boundary: float = RATIO_BOUNDARY,
+    target_classes: list[int] | None = None,
+    boundary_classes: list[int] | None = None,
+) -> tuple[Tensor, list[str]]:
+    """Convenience function to sample mixed patch centers.
+
+    Args:
+        label_full: (D, H, W) label tensor.
+        n_samples: Number of samples.
+        patch_size: (Df, Hf, Wf) patch size.
+        ratio_uniform: Fraction of uniform samples.
+        ratio_positive: Fraction of positive samples.
+        ratio_boundary: Fraction of boundary samples.
+        target_classes: Classes for positive sampling.
+        boundary_classes: Classes for boundary sampling.
+
+    Returns:
+        Tuple of (centers, modes) where centers is (N, 3) tensor.
+    """
+    sampler = PatchSampler(
+        patch_size=patch_size,
+        ratio_uniform=ratio_uniform,
+        ratio_positive=ratio_positive,
+        ratio_boundary=ratio_boundary,
+        target_classes=target_classes,
+        boundary_classes=boundary_classes,
+    )
+    return sampler.sample_batch(label_full, n_samples)
