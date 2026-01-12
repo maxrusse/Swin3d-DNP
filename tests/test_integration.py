@@ -140,8 +140,12 @@ class TestFullTrainingStep:
         assert fine_logits.shape == (B, 2, *batch["fine_shape"])
 
         # Compute loss
+        # Create valid mask for coarse (all ones - coarse is never padded)
+        B, C_coarse, Dc, Hc, Wc = coarse_logits.shape
+        valid_mask_coarse = torch.ones(B, 1, Dc, Hc, Wc, device=coarse_logits.device)
+
         loss_coarse_ce = masked_cross_entropy(
-            coarse_logits, batch["label_coarse"], valid_mask=None
+            coarse_logits, batch["label_coarse"], valid_mask=valid_mask_coarse
         )
         loss_fine_ce = masked_cross_entropy(
             fine_logits, label_fine, valid_mask=valid_mask
