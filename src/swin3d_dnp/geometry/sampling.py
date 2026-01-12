@@ -31,8 +31,10 @@ def extent_vox_in_src_from_spacings(
 
     Args:
         out_shape: (Df, Hf, Wf) output patch shape.
-        fine_spacing_dhw_mm: (d, h, w) spacing of fine volume in mm.
-        coarse_spacing_dhw_mm: (d, h, w) spacing of coarse volume in mm.
+        fine_spacing_dhw_mm: (3,) or (B, 3) spacing of fine volume in mm.
+            If batched, uses first sample (assumes uniform spacing across batch).
+        coarse_spacing_dhw_mm: (3,) or (B, 3) spacing of coarse volume in mm.
+            If batched, uses first sample.
 
     Returns:
         (Ld, Lh, Lw) extent in coarse voxels (float).
@@ -40,11 +42,17 @@ def extent_vox_in_src_from_spacings(
     Df, Hf, Wf = out_shape
 
     if isinstance(fine_spacing_dhw_mm, Tensor):
+        # Handle batch dimension: if (B, 3), take first sample
+        if fine_spacing_dhw_mm.dim() == 2:
+            fine_spacing_dhw_mm = fine_spacing_dhw_mm[0]
         sd, sh, sw = fine_spacing_dhw_mm.tolist()
     else:
         sd, sh, sw = fine_spacing_dhw_mm
 
     if isinstance(coarse_spacing_dhw_mm, Tensor):
+        # Handle batch dimension: if (B, 3), take first sample
+        if coarse_spacing_dhw_mm.dim() == 2:
+            coarse_spacing_dhw_mm = coarse_spacing_dhw_mm[0]
         cd, ch, cw = coarse_spacing_dhw_mm.tolist()
     else:
         cd, ch, cw = coarse_spacing_dhw_mm
