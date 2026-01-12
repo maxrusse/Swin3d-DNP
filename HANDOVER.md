@@ -86,6 +86,9 @@ Swin3D-DNP is a unified hierarchical 3D deep learning framework for biomedical i
 ### All Milestones Complete
 All 7 milestones have been completed. The implementation is ready for external testing.
 
+### Recent Maintenance Updates
+- Added a code simplification worklist (`code_simplification_worklist.md`) and performed a small readability refactor in `generate_tile_positions` to reuse computed ranges without changing behavior.
+
 ---
 
 ## 3. Milestone 5 Implementation Summary
