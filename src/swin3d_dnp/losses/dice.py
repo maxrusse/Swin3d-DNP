@@ -15,6 +15,41 @@ from typing import Optional
 from swin3d_dnp.constants import EPS_DICE
 
 
+def _ensure_one_hot(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Convert target to one-hot encoding if needed.
+
+    Args:
+        pred: (B, C, D, H, W) prediction tensor (used for shape reference).
+        target: (B, 1, D, H, W) class indices OR (B, C, D, H, W) one-hot.
+
+    Returns:
+        (B, C, D, H, W) one-hot encoded target.
+    """
+    if target.shape[1] == 1:
+        target_oh = torch.zeros_like(pred)
+        target_oh.scatter_(1, target.long(), 1.0)
+        return target_oh
+    return target.float()
+
+
+def _logits_to_probs(logits: torch.Tensor, apply_softmax: bool) -> torch.Tensor:
+    """Convert logits to probabilities if requested.
+
+    Args:
+        logits: (B, C, D, H, W) raw logits or probabilities.
+        apply_softmax: If True, apply softmax (multi-class) or sigmoid (binary).
+
+    Returns:
+        (B, C, D, H, W) probability tensor.
+    """
+    if not apply_softmax:
+        return logits
+    C = logits.shape[1]
+    if C > 1:
+        return torch.softmax(logits, dim=1)
+    return torch.sigmoid(logits)
+
+
 def masked_dice_loss(
     pred: torch.Tensor,
     target: torch.Tensor,
@@ -50,23 +85,8 @@ def masked_dice_loss(
     """
     B, C, D, H, W = pred.shape
 
-    # Convert target to one-hot if needed
-    if target.shape[1] == 1:
-        # target is (B, 1, D, H, W) with class indices
-        target_oh = torch.zeros_like(pred)
-        target_oh.scatter_(1, target.long(), 1.0)
-    else:
-        # target is already (B, C, D, H, W) one-hot
-        target_oh = target.float()
-
-    # Convert logits to probabilities
-    if apply_softmax:
-        if C > 1:
-            pred_prob = torch.softmax(pred, dim=1)
-        else:
-            pred_prob = torch.sigmoid(pred)
-    else:
-        pred_prob = pred
+    target_oh = _ensure_one_hot(pred, target)
+    pred_prob = _logits_to_probs(pred, apply_softmax)
 
     # Apply valid mask - broadcast across channels
     vm = valid_mask  # (B, 1, D, H, W)
@@ -124,27 +144,11 @@ def masked_dice_loss_per_class(
     Returns:
         (C,) tensor with per-class Dice losses
     """
-    B, C, D, H, W = pred.shape
+    target_oh = _ensure_one_hot(pred, target)
+    pred_prob = _logits_to_probs(pred, apply_softmax)
 
-    # Convert target to one-hot if needed
-    if target.shape[1] == 1:
-        target_oh = torch.zeros_like(pred)
-        target_oh.scatter_(1, target.long(), 1.0)
-    else:
-        target_oh = target.float()
-
-    # Convert logits to probabilities
-    if apply_softmax:
-        if C > 1:
-            pred_prob = torch.softmax(pred, dim=1)
-        else:
-            pred_prob = torch.sigmoid(pred)
-    else:
-        pred_prob = pred
-
-    vm = valid_mask
-    pred_masked = pred_prob * vm
-    target_masked = target_oh * vm
+    pred_masked = pred_prob * valid_mask
+    target_masked = target_oh * valid_mask
 
     dims = (0, 2, 3, 4)  # Sum over batch and spatial
 
@@ -184,27 +188,11 @@ def masked_generalized_dice_loss(
         Sudre et al., "Generalised Dice overlap as a deep learning
         loss function for highly unbalanced segmentations"
     """
-    B, C, D, H, W = pred.shape
+    target_oh = _ensure_one_hot(pred, target)
+    pred_prob = _logits_to_probs(pred, apply_softmax)
 
-    # Convert target to one-hot if needed
-    if target.shape[1] == 1:
-        target_oh = torch.zeros_like(pred)
-        target_oh.scatter_(1, target.long(), 1.0)
-    else:
-        target_oh = target.float()
-
-    # Convert logits to probabilities
-    if apply_softmax:
-        if C > 1:
-            pred_prob = torch.softmax(pred, dim=1)
-        else:
-            pred_prob = torch.sigmoid(pred)
-    else:
-        pred_prob = pred
-
-    vm = valid_mask
-    pred_masked = pred_prob * vm
-    target_masked = target_oh * vm
+    pred_masked = pred_prob * valid_mask
+    target_masked = target_oh * valid_mask
 
     dims = (2, 3, 4)  # Sum over spatial
 
