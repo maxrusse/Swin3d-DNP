@@ -21,6 +21,15 @@
 
 - [x] Simplified `generate_tile_positions` range construction to reuse computed ranges while preserving edge coverage logic.
 - [x] Simplified `Predictor` coarse-stage setup and patch-start construction with shared helpers.
+- [x] Reviewed geometry module (`coordinates.py`, `sampling.py`, `mapping.py`): Removed unused import of `index_to_norm_acfalse` from `mapping.py`.
+- [x] Reviewed data module (`dataset.py`, `sampling.py`, `transforms.py`): Clean code, no simplifications needed.
+- [x] Reviewed training module (`trainer.py`, `scheduler.py`, `utils.py`): Well-structured, duplication between train/validate is intentional for explicitness.
+- [x] Reviewed losses module: Extracted `_ensure_one_hot` and `_logits_to_probs` helpers in `dice.py` to reduce repeated one-hot conversion and softmax logic.
+- [x] Reviewed models module (`coarse_net.py`, `fine_net.py`, `fusion.py`, `swin3d_dnp.py`): Duplication between lite/full variants is intentional for clarity.
+
+## Remaining Work
+
+- [ ] Review tests for clarity and consistency (`tests/`).
 
 ## Bugs/Follow-ups Noted
 

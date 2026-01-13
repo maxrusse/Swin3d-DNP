@@ -9,8 +9,6 @@ CRITICAL CONVENTION:
 import torch
 from torch import Tensor
 
-from swin3d_dnp.geometry.coordinates import index_to_norm_acfalse
-
 
 def center_full_to_coarse_norm(
     center_full_index_zyx: Tensor,
