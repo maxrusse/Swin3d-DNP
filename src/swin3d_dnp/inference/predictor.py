@@ -215,7 +215,7 @@ class Predictor:
             affine_full, full_shape, coarse_shape
         )
 
-        with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+        with torch.amp.autocast(device_type=self.device.type, enabled=self.config.use_amp):
             coarse_logits, coarse_feat = self.model.forward_coarse_only(image_coarse)
 
         return (
@@ -352,7 +352,7 @@ class Predictor:
             )
 
             # Run fine network with coarse context
-            with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+            with torch.amp.autocast(device_type=self.device.type, enabled=self.config.use_amp):
                 fine_logits = self.model.forward_fine_with_context(
                     image_fine,
                     coarse_feat,
@@ -474,7 +474,7 @@ class Predictor:
             )
 
             # Run fine network with coarse context
-            with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+            with torch.amp.autocast(device_type=self.device.type, enabled=self.config.use_amp):
                 fine_logits = self.model.forward_fine_with_context(
                     image_fine,
                     coarse_feat,
@@ -714,7 +714,7 @@ class BoundaryRefinementPredictor(Predictor):
             )
 
             # Run fine network
-            with torch.cuda.amp.autocast(enabled=self.config.use_amp):
+            with torch.amp.autocast(device_type=self.device.type, enabled=self.config.use_amp):
                 fine_logits = self.model.forward_fine_with_context(
                     image_fine,
                     coarse_feat,
