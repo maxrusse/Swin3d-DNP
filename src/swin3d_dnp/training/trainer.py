@@ -284,7 +284,7 @@ class Trainer:
 
         # Forward pass with AMP
         with torch.amp.autocast(
-            device_type="cuda",
+            device_type=self.device.type,
             dtype=self.amp_dtype,
             enabled=self.config.use_amp,
         ):
@@ -432,6 +432,7 @@ class Trainer:
         n_batches = 0
 
         phase_info = self.phase_scheduler.step(self.state.step)
+        self.phase_scheduler.apply_to_model(self.model, self.state.step)
 
         for batch in self.val_loader:
             batch = move_batch_to_device(batch, self.device)
@@ -465,7 +466,7 @@ class Trainer:
             )
 
             with torch.amp.autocast(
-                device_type="cuda",
+                device_type=self.device.type,
                 dtype=self.amp_dtype,
                 enabled=self.config.use_amp,
             ):
